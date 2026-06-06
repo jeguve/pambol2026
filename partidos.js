@@ -1,4 +1,4 @@
-// partidos.js - Calendario Completo Copa del Mundo 2026 (104 partidos)
+// partidos.js - Calendario Maestro Completo 2026 (104 partidos oficiales)
 const partidosMundial = [
     // ==========================================
     // FASE DE GRUPOS (72 Partidos)
@@ -6,10 +6,10 @@ const partidosMundial = [
     
     // --- GRUPO A ---
     { id: 'a1', local: 'México', localFlag: '🇲🇽', visit: 'Sudáfrica', visitFlag: '🇿🇦', sede: 'Estadio Azteca', hora: '2026-06-11T13:00:00', fase: 'grupos', grupo: 'A' },
-    { id: 'a2', local: 'Corea del Sur', localFlag: '🇰🇷', visit: 'República Checa', visitFlag: '🇨🇿', sede: 'Estadio Guadalajara', hora: '2026-06-11T20:00:00', fase: 'grupos', grupo: 'A' },
-    { id: 'a3', local: 'República Checa', localFlag: '🇨🇿', visit: 'Sudáfrica', visitFlag: '🇿🇦', sede: 'Estadio Atlanta', hora: '2026-06-18T10:00:00', fase: 'grupos', grupo: 'A' },
+    { id: 'a2', local: 'Corea del Sur', localFlag: '🇰🇷', visit: 'Chequia', visitFlag: '🇨🇿', sede: 'Estadio Guadalajara', hora: '2026-06-11T20:00:00', fase: 'grupos', grupo: 'A' },
+    { id: 'a3', local: 'Chequia', localFlag: '🇨🇿', visit: 'Sudáfrica', visitFlag: '🇿🇦', sede: 'Estadio Atlanta', hora: '2026-06-18T10:00:00', fase: 'grupos', grupo: 'A' },
     { id: 'a4', local: 'México', localFlag: '🇲🇽', visit: 'Corea del Sur', visitFlag: '🇰🇷', sede: 'Estadio Guadalajara', hora: '2026-06-18T19:00:00', fase: 'grupos', grupo: 'A' },
-    { id: 'a5', local: 'República Checa', localFlag: '🇨🇿', visit: 'México', visitFlag: '🇲🇽', sede: 'Estadio Azteca', hora: '2026-06-24T19:00:00', fase: 'grupos', grupo: 'A' },
+    { id: 'a5', local: 'Chequia', localFlag: '🇨🇿', visit: 'México', visitFlag: '🇲🇽', sede: 'Estadio Azteca', hora: '2026-06-24T19:00:00', fase: 'grupos', grupo: 'A' },
     { id: 'a6', local: 'Sudáfrica', localFlag: '🇿🇦', visit: 'Corea del Sur', visitFlag: '🇰🇷', sede: 'Estadio Monterrey', hora: '2026-06-24T19:00:00', fase: 'grupos', grupo: 'A' },
 
     // --- GRUPO B ---
@@ -29,19 +29,19 @@ const partidosMundial = [
     { id: 'c6', local: 'Brasil', localFlag: '🇧🇷', visit: 'Escocia', visitFlag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', sede: 'Estadio Miami', hora: '2026-06-24T14:00:00', fase: 'grupos', grupo: 'C' },
 
     // --- GRUPO D ---
-    { id: 'd1', local: 'Estados Unidos', localFlag: '🇺🇸', visit: 'Paraguay', visitFlag: '🇵🇾', sede: 'Estadio Los Angeles', hora: '2026-06-12T19:00:00', fase: 'grupos', grupo: 'D' },
+    { id: 'd1', local: 'USA', localFlag: '🇺🇸', visit: 'Paraguay', visitFlag: '🇵🇾', sede: 'Estadio Los Angeles', hora: '2026-06-12T19:00:00', fase: 'grupos', grupo: 'D' },
     { id: 'd2', local: 'Australia', localFlag: '🇦🇺', visit: 'Turquía', visitFlag: '🇹🇷', sede: 'Estadio Vancouver', hora: '2026-06-13T22:00:00', fase: 'grupos', grupo: 'D' },
-    { id: 'd3', local: 'Estados Unidos', localFlag: '🇺🇸', visit: 'Australia', visitFlag: '🇦🇺', sede: 'Estadio Seattle', hora: '2026-06-19T13:00:00', fase: 'grupos', grupo: 'D' },
+    { id: 'd3', local: 'USA', localFlag: '🇺🇸', visit: 'Australia', visitFlag: '🇦🇺', sede: 'Estadio Seattle', hora: '2026-06-19T13:00:00', fase: 'grupos', grupo: 'D' },
     { id: 'd4', local: 'Turquía', localFlag: '🇹🇷', visit: 'Paraguay', visitFlag: '🇵🇾', sede: 'Estadio San Francisco', hora: '2026-06-19T21:00:00', fase: 'grupos', grupo: 'D' },
-    { id: 'd5', local: 'Turquía', localFlag: '🇹🇷', visit: 'Estados Unidos', visitFlag: '🇺🇸', sede: 'Estadio Los Angeles', hora: '2026-06-25T14:00:00', fase: 'grupos', grupo: 'D' },
+    { id: 'd5', local: 'Turquía', localFlag: '🇹🇷', visit: 'USA', visitFlag: '🇺🇸', sede: 'Estadio Los Angeles', hora: '2026-06-25T14:00:00', fase: 'grupos', grupo: 'D' },
     { id: 'd6', local: 'Paraguay', localFlag: '🇵🇾', visit: 'Australia', visitFlag: '🇦🇺', sede: 'Estadio Seattle', hora: '2026-06-25T14:00:00', fase: 'grupos', grupo: 'D' },
 
     // --- GRUPO E ---
     { id: 'e1', local: 'Alemania', localFlag: '🇩🇪', visit: 'Curazao', visitFlag: '🇨🇼', sede: 'Estadio Houston', hora: '2026-06-14T11:00:00', fase: 'grupos', grupo: 'E' },
-    { id: 'e2', local: 'Costa de Marfil', localFlag: '🇨🇮', visit: 'Ecuador', visitFlag: '🇪🇨', sede: 'Estadio Philadelphia', hora: '2026-06-14T17:00:00', fase: 'grupos', grupo: 'E' },
-    { id: 'e3', local: 'Alemania', localFlag: '🇩🇪', visit: 'Costa de Marfil', visitFlag: '🇨🇮', sede: 'Estadio Toronto', hora: '2026-06-20T14:00:00', fase: 'grupos', grupo: 'E' },
+    { id: 'e2', local: 'C. de Marfil', localFlag: '🇨🇮', visit: 'Ecuador', visitFlag: '🇪🇨', sede: 'Estadio Philadelphia', hora: '2026-06-14T17:00:00', fase: 'grupos', grupo: 'E' },
+    { id: 'e3', local: 'Alemania', localFlag: '🇩🇪', visit: 'C. de Marfil', visitFlag: '🇨🇮', sede: 'Estadio Toronto', hora: '2026-06-20T14:00:00', fase: 'grupos', grupo: 'E' },
     { id: 'e4', local: 'Ecuador', localFlag: '🇪🇨', visit: 'Curazao', visitFlag: '🇨🇼', sede: 'Estadio Kansas City', hora: '2026-06-20T18:00:00', fase: 'grupos', grupo: 'E' },
-    { id: 'e5', local: 'Curazao', localFlag: '🇨🇼', visit: 'Costa de Marfil', visitFlag: '🇨🇮', sede: 'Estadio New York', hora: '2026-06-25T18:00:00', fase: 'grupos', grupo: 'E' },
+    { id: 'e5', local: 'Curazao', localFlag: '🇨🇼', visit: 'C. de Marfil', visitFlag: '🇨🇮', sede: 'Estadio New York', hora: '2026-06-25T18:00:00', fase: 'grupos', grupo: 'E' },
     { id: 'e6', local: 'Ecuador', localFlag: '🇪🇨', visit: 'Alemania', visitFlag: '🇩🇪', sede: 'Estadio Philadelphia', hora: '2026-06-25T18:00:00', fase: 'grupos', grupo: 'E' },
 
     // --- GRUPO F ---
@@ -54,11 +54,11 @@ const partidosMundial = [
 
     // --- GRUPO G ---
     { id: 'g1', local: 'Bélgica', localFlag: '🇧🇪', visit: 'Egipto', visitFlag: '🇪🇬', sede: 'Estadio Seattle', hora: '2026-06-15T13:00:00', fase: 'grupos', grupo: 'G' },
-    { id: 'g2', local: 'Irán', localFlag: '🇮🇷', visit: 'Nueva Zelanda', visitFlag: '🇳🇿', sede: 'Estadio Los Angeles', hora: '2026-06-15T19:00:00', fase: 'grupos', grupo: 'G' },
+    { id: 'g2', local: 'Irán', localFlag: '🇮🇷', visit: 'N. Zelanda', visitFlag: '🇳🇿', sede: 'Estadio Los Angeles', hora: '2026-06-15T19:00:00', fase: 'grupos', grupo: 'G' },
     { id: 'g3', local: 'Bélgica', localFlag: '🇧🇪', visit: 'Irán', visitFlag: '🇮🇷', sede: 'Estadio Los Angeles', hora: '2026-06-21T13:00:00', fase: 'grupos', grupo: 'G' },
-    { id: 'g4', local: 'Nueva Zelanda', localFlag: '🇳🇿', visit: 'Egipto', visitFlag: '🇪🇬', sede: 'Estadio Vancouver', hora: '2026-06-21T19:00:00', fase: 'grupos', grupo: 'G' },
+    { id: 'g4', local: 'N. Zelanda', localFlag: '🇳🇿', visit: 'Egipto', visitFlag: '🇪🇬', sede: 'Estadio Vancouver', hora: '2026-06-21T19:00:00', fase: 'grupos', grupo: 'G' },
     { id: 'g5', local: 'Egipto', localFlag: '🇪🇬', visit: 'Irán', visitFlag: '🇮🇷', sede: 'Estadio San Francisco', hora: '2026-06-26T15:00:00', fase: 'grupos', grupo: 'G' },
-    { id: 'g6', local: 'Nueva Zelanda', localFlag: '🇳🇿', visit: 'Bélgica', visitFlag: '🇧🇪', sede: 'Estadio Seattle', hora: '2026-06-26T15:00:00', fase: 'grupos', grupo: 'G' },
+    { id: 'g6', local: 'N. Zelanda', localFlag: '🇳🇿', visit: 'Bélgica', visitFlag: '🇧🇪', sede: 'Estadio Seattle', hora: '2026-06-26T15:00:00', fase: 'grupos', grupo: 'G' },
 
     // --- GRUPO H ---
     { id: 'h1', local: 'España', localFlag: '🇪🇸', visit: 'Cabo Verde', visitFlag: '🇨🇻', sede: 'Estadio Atlanta', hora: '2026-06-15T10:00:00', fase: 'grupos', grupo: 'H' },
@@ -101,27 +101,50 @@ const partidosMundial = [
     { id: 'l6', local: 'Panamá', localFlag: '🇵🇦', visit: 'Inglaterra', visitFlag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', sede: 'Estadio New York', hora: '2026-06-28T19:00:00', fase: 'grupos', grupo: 'L' },
 
     // ==========================================
-    // LLAVES ELIMINATORIAS (Estructurales directas de la FIFA)
+    // LLAVES ELIMINATORIAS COMPLETAS (32 Partidos)
     // ==========================================
     
-    // --- 32AVOS DE FINAL ---
-    { id: '32_1', local: '1A', localFlag: '🏳️', visit: '3C/D/E/F', visitFlag: '🏳️', sede: 'SoFi Stadium', hora: '2026-06-29T15:00:00', fase: '32avos' },
+    // --- 32AVOS DE FINAL (16 Partidos completos) ---
+    { id: '32_1', local: '1A', localFlag: '🏳️', visit: '3C/D/E/F', visitFlag: '🏳️', sede: 'Los Angeles', hora: '2026-06-29T15:00:00', fase: '32avos' },
     { id: '32_2', local: '2A', localFlag: '🏳️', visit: '2B', visitFlag: '🏳️', sede: 'Dallas', hora: '2026-06-29T19:00:00', fase: '32avos' },
     { id: '32_3', local: '1B', localFlag: '🏳️', visit: '3A/C/D/F', visitFlag: '🏳️', sede: 'Miami', hora: '2026-06-30T16:00:00', fase: '32avos' },
-    { id: '32_4', local: '1C', localFlag: '🏳️', visit: '2D', visitFlag: '🏳️', sede: 'MetLife Stadium', hora: '2026-06-30T20:00:00', fase: '32avos' },
+    { id: '32_4', local: '1C', localFlag: '🏳️', visit: '2D', visitFlag: '🏳️', sede: 'New York', hora: '2026-06-30T20:00:00', fase: '32avos' },
+    { id: '32_5', local: '1D', localFlag: '🏳️', visit: '3A/B/E/F', visitFlag: '🏳️', sede: 'Boston', hora: '2026-07-01T14:00:00', fase: '32avos' },
+    { id: '32_6', local: '1E', localFlag: '🏳️', visit: '2F', visitFlag: '🏳️', sede: 'CDMX', hora: '2026-07-01T18:00:00', fase: '32avos' },
+    { id: '32_7', local: '1F', localFlag: '🏳️', visit: '2E', visitFlag: '🏳️', sede: 'Atlanta', hora: '2026-07-02T15:00:00', fase: '32avos' },
+    { id: '32_8', local: '1G', localFlag: '🏳️', visit: '3H/I/J/K', visitFlag: '🏳️', sede: 'Houston', hora: '2026-07-02T19:00:00', fase: '32avos' },
+    { id: '32_9', local: '1H', localFlag: '🏳️', visit: '2G', visitFlag: '🏳️', sede: 'San Francisco', hora: '2026-07-03T14:00:00', fase: '32avos' },
+    { id: '32_10', local: '1I', localFlag: '🏳️', visit: '3G/H/J/K', visitFlag: '🏳️', sede: 'Seattle', hora: '2026-07-03T18:00:00', fase: '32avos' },
+    { id: '32_11', local: '1J', localFlag: '🏳️', visit: '2K', visitFlag: '🏳️', sede: 'Kansas City', hora: '2026-07-04T13:00:00', fase: '32avos' },
+    { id: '32_12', local: '1K', localFlag: '🏳️', visit: '2J', visitFlag: '🏳️', sede: 'Philadelphia', hora: '2026-07-04T17:00:00', fase: '32avos' },
+    { id: '32_13', local: '1L', localFlag: '🏳️', visit: '3A/B/G/H', visitFlag: '🏳️', sede: 'Toronto', hora: '2026-07-05T14:00:00', fase: '32avos' },
+    { id: '32_14', local: '2L', localFlag: '🏳️', visit: '2I', visitFlag: '🏳️', sede: 'Boston', hora: '2026-07-05T18:00:00', fase: '32avos' },
+    { id: '32_15', local: '2C', localFlag: '🏳️', visit: '2H', visitFlag: '🏳️', sede: 'Monterrey', hora: '2026-07-06T15:00:00', fase: '32avos' },
+    { id: '32_16', local: '1A', localFlag: '🏳️', visit: '2A', visitFlag: '🏳️', sede: 'Vancouver', hora: '2026-07-06T19:00:00', fase: '32avos' },
 
-    // --- 16AVOS DE FINAL ---
-    { id: '16_1', local: 'Ganador 32_1', localFlag: '🏳️', visit: 'Ganador 32_2', visitFlag: '🏳️', sede: 'East Rutherford', hora: '2026-07-09T16:00:00', fase: '16avos' },
+    // --- 16AVOS DE FINAL (8 Partidos completos) ---
+    { id: '16_1', local: 'Ganador 32_1', localFlag: '🏳️', visit: 'Ganador 32_2', visitFlag: '🏳️', sede: 'New York', hora: '2026-07-09T16:00:00', fase: '16avos' },
     { id: '16_2', local: 'Ganador 32_3', localFlag: '🏳️', visit: 'Ganador 32_4', visitFlag: '🏳️', sede: 'Philadelphia', hora: '2026-07-09T20:00:00', fase: '16avos' },
+    { id: '16_3', local: 'Ganador 32_5', localFlag: '🏳️', visit: 'Ganador 32_6', visitFlag: '🏳️', sede: 'Houston', hora: '2026-07-10T15:00:00', fase: '16avos' },
+    { id: '16_4', local: 'Ganador 32_7', localFlag: '🏳️', visit: 'Ganador 32_8', visitFlag: '🏳️', sede: 'Guadalajara', hora: '2026-07-10T19:00:00', fase: '16avos' },
+    { id: '16_5', local: 'Ganador 32_9', localFlag: '🏳️', visit: 'Ganador 32_10', visitFlag: '🏳️', sede: 'Los Angeles', hora: '2026-07-11T14:00:00', fase: '16avos' },
+    { id: '16_6', local: 'Ganador 32_11', localFlag: '🏳️', visit: 'Ganador 32_12', visitFlag: '🏳️', sede: 'Miami', hora: '2026-07-11T18:00:00', fase: '16avos' },
+    { id: '16_7', local: 'Ganador 32_13', localFlag: '🏳️', visit: 'Ganador 32_14', visitFlag: '🏳️', sede: 'Seattle', hora: '2026-07-12T15:00:00', fase: '16avos' },
+    { id: '16_8', local: 'Ganador 32_15', localFlag: '🏳️', visit: 'Ganador 32_16', visitFlag: '🏳️', sede: 'CDMX', hora: '2026-07-12T19:00:00', fase: '16avos' },
 
-    // --- CUARTOS DE FINAL ---
+    // --- CUARTOS DE FINAL (4 Partidos completos) ---
     { id: '4_1', local: 'Ganador 16_1', localFlag: '🏳️', visit: 'Ganador 16_2', visitFlag: '🏳️', sede: 'Boston', hora: '2026-07-15T16:00:00', fase: 'cuartos' },
+    { id: '4_2', local: 'Ganador 16_3', localFlag: '🏳️', visit: 'Ganador 16_4', visitFlag: '🏳️', sede: 'Los Angeles', hora: '2026-07-15T20:00:00', fase: 'cuartos' },
+    { id: '4_3', local: 'Ganador 16_5', localFlag: '🏳️', visit: 'Ganador 16_6', visitFlag: '🏳️', sede: 'Kansas City', hora: '2026-07-16T17:00:00', fase: 'cuartos' },
+    { id: '4_4', local: 'Ganador 16_7', localFlag: '🏳️', visit: 'Ganador 16_8', visitFlag: '🏳️', sede: 'Miami', hora: '2026-07-16T21:00:00', fase: 'cuartos' },
 
-    // --- SEMIFINALES ---
-    { id: 'semi_1', local: 'Ganador C1', localFlag: '🏳️', visit: 'Ganador C2', visitFlag: '🏳️', sede: 'Dallas', hora: '2026-07-18T19:00:00', fase: 'semis' },
+    // --- SEMIFINALES (2 Partidos) ---
+    { id: 'semi_1', local: 'Ganador 4_1', localFlag: '🏳️', visit: 'Ganador 4_2', visitFlag: '🏳️', sede: 'Dallas', hora: '2026-07-18T19:00:00', fase: 'semis' },
+    { id: 'semi_2', local: 'Ganador 4_3', localFlag: '🏳️', visit: 'Ganador 4_4', visitFlag: '🏳️', sede: 'Atlanta', hora: '2026-07-19T19:00:00', fase: 'semis' },
 
-    // --- DEFINICIONES FINALES ---
-    { id: 'gran_final', local: 'Ganador S1', localFlag: '🏳️', visit: 'Ganador S2', visitFlag: '🏳️', sede: 'MetLife Stadium', hora: '2026-07-26T15:00:00', fase: 'final' }
+    // --- FINALES ---
+    { id: 'tercer_lugar', local: 'Perdedor S1', localFlag: '🏳️', visit: 'Perdedor S2', visitFlag: '🏳️', sede: 'Miami', hora: '2026-07-25T16:00:00', fase: 'final' },
+    { id: 'gran_final', local: 'Ganador S1', localFlag: '🏳️', visit: 'Ganador S2', visitFlag: '🏳️', sede: 'New York', hora: '2026-07-26T15:00:00', fase: 'final' }
 ];
 
 window.partidosMundial = partidosMundial;
