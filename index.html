@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiniela Total Mundial 2026</title>
+    <title>Quiniela Mundial 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- CARGA DEL CALENDARIO OFICIAL MAESTRO -->
+    <script src="partidos.js"></script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, getRedirectResult, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -31,72 +35,24 @@
 
         let currentUser = null;
         let faseActiva = 'grupos';
+        let mapeoEquiposProcesados = {};
 
-        // ==========================================
-        // CALENDARIO MAESTRO COMPLETO (Estructura FIFA 2026)
-        // ==========================================
-        // Nota: Se listan partidos clave de grupos como muestra estructurada de los 72 totales, 
-        // y la totalidad de las llaves eliminatorias fijas (32 partidos finales).
-        const partidosMundial = [
-            // --- FASE DE GRUPOS (Muestra de jornadas inaugurales por Grupo A-L) ---
-            { id: 'partido_1', local: 'México', localFlag: '🇲🇽', visit: 'Francia', visitFlag: '🇫🇷', sede: 'Estadio Azteca', hora: '2026-06-11T15:00:00', fase: 'grupos', grupo: 'A' },
-            { id: 'partido_2', local: 'Estados Unidos', localFlag: '🇺🇸', visit: 'Marruecos', visitFlag: '🇲🇦', sede: 'SoFi Stadium', hora: '2026-06-12T16:00:00', fase: 'grupos', grupo: 'B' },
-            { id: 'partido_3', local: 'Canadá', localFlag: '🇨🇦', visit: 'Suecia', visitFlag: '🇸🇪', sede: 'BMO Field', hora: '2026-06-12T19:00:00', fase: 'grupos', grupo: 'C' },
-            { id: 'partido_4', local: 'Argentina', localFlag: '🇦🇷', visit: 'Corea del Sur', visitFlag: '🇰🇷', sede: 'MetLife Stadium', hora: '2026-06-13T12:00:00', fase: 'grupos', grupo: 'D' },
-            { id: 'partido_5', local: 'Brasil', localFlag: '🇧🇷', visit: 'Italia', visitFlag: '🇮🇹', sede: 'Hard Rock Stadium', hora: '2026-06-14T15:00:00', fase: 'grupos', grupo: 'E' },
-            { id: 'partido_6', local: 'Alemania', localFlag: '🇩🇪', visit: 'Japón', visitFlag: '🇯🇵', sede: 'Gillette Stadium', hora: '2026-06-14T18:00:00', fase: 'grupos', grupo: 'F' },
-            { id: 'partido_7', local: 'España', localFlag: '🇪🇸', visit: 'Camerún', visitFlag: '🇨🇲', sede: 'Levi Stadium', hora: '2026-06-15T13:00:00', fase: 'grupos', grupo: 'G' },
-            { id: 'partido_8', local: 'Inglaterra', localFlag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', visit: 'Ecuador', visitFlag: '🇪🇨', sede: 'Lumen Field', hora: '2026-06-15T17:00:00', fase: 'grupos', grupo: 'H' },
-            { id: 'partido_9', local: 'Bélgica', localFlag: '🇧🇪', visit: 'Arabia Saudita', visitFlag: '🇸🇦', sede: 'NRG Stadium', hora: '2026-06-16T14:00:00', fase: 'grupos', grupo: 'I' },
-            { id: 'partido_10', local: 'Países Bajos', localFlag: '🇳🇱', visit: 'Australia', visitFlag: '🇦🇺', sede: 'Mercedes-Benz Stadium', hora: '2026-06-16T19:00:00', fase: 'grupos', grupo: 'J' },
-            { id: 'partido_11', local: 'Portugal', localFlag: '🇵🇹', visit: 'Uruguay', visitFlag: '🇺🇾', sede: 'AT&T Stadium', hora: '2026-06-17T15:00:00', fase: 'grupos', grupo: 'K' },
-            { id: 'partido_12', local: 'Colombia', localFlag: '🇨🇴', visit: 'Croacia', visitFlag: '🇭🇷', sede: 'Lincoln Financial', hora: '2026-06-17T20:00:00', fase: 'grupos', grupo: 'L' },
-
-            // --- FASE DE DIECISEISAVOS (32 Equipos - Llaves Lógicas Fijas) ---
-            { id: '16avos_1', local: '1A', localFlag: '🏳️', visit: '3C/D/E/F', visitFlag: '🏳️', sede: 'Los Angeles', hora: '2026-06-24T15:00:00', fase: '16avos', llave: '16_L1' },
-            { id: '16avos_2', local: '2A', localFlag: '🏳️', visit: '2B', visitFlag: '🏳️', sede: 'Dallas', hora: '2026-06-24T19:00:00', fase: '16avos', llave: '16_L2' },
-            { id: '16avos_3', local: '1B', localFlag: '🏳️', visit: '3A/C/D/F', visitFlag: '🏳️', sede: 'Miami', hora: '2026-06-25T16:00:00', fase: '16avos', llave: '16_L3' },
-            { id: '16avos_4', local: '1C', localFlag: '🏳️', visit: '2D', visitFlag: '🏳️', sede: 'New York', hora: '2026-06-25T20:00:00', fase: '16avos', llave: '16_L4' },
-            { id: '16avos_5', local: '1E', localFlag: '🏳️', visit: '2F', visitFlag: '🏳️', sede: 'Seattle', hora: '2026-06-26T14:00:00', fase: '16avos', llave: '16_L5' },
-            { id: '16avos_6', local: '1F', localFlag: '🏳️', visit: '2E', visitFlag: '🏳️', sede: 'Mexico DF', hora: '2026-06-26T18:00:00', fase: '16avos', llave: '16_L6' },
-            { id: '16avos_7', local: '1G', localFlag: '🏳️', visit: '3H/I/J/K', visitFlag: '🏳️', sede: 'Atlanta', hora: '2026-06-27T15:00:00', fase: '16avos', llave: '16_L7' },
-            { id: '16avos_8', local: '1H', localFlag: '🏳️', visit: '2G', visitFlag: '🏳️', sede: 'Houston', hora: '2026-06-27T19:00:00', fase: '16avos', llave: '16_L8' },
-            // ... Se autogeneran dinámicamente las llaves consecutivas por espacio estructural
-
-            // --- FASE DE OCTAVOS DE FINAL ---
-            { id: '8vos_1', local: 'Ganador 16_L1', localFlag: '🏳️', visit: 'Ganador 16_L2', visitFlag: '🏳️', sede: 'East Rutherford', hora: '2026-06-29T16:00:00', fase: '8vos', llave: '8_L1' },
-            { id: '8vos_2', local: 'Ganador 16_L3', localFlag: '🏳️', visit: 'Ganador 16_L4', visitFlag: '🏳️', sede: 'Philadelphia', hora: '2026-06-29T20:00:00', fase: '8vos', llave: '8_L2' },
-            { id: '8vos_3', local: 'Ganador 16_L5', localFlag: '🏳️', visit: 'Ganador 16_L6', visitFlag: '🏳️', sede: 'Houston', hora: '2026-06-30T15:00:00', fase: '8vos', llave: '8_L3' },
-            { id: '8vos_4', local: 'Ganador 16_L7', localFlag: '🏳️', visit: 'Ganador 16_L8', visitFlag: '🏳️', sede: 'Guadalajara', hora: '2026-06-30T19:00:00', fase: '8vos', llave: '8_L4' },
-
-            // --- FASE DE CUARTOS DE FINAL ---
-            { id: '4tos_1', local: 'Ganador 8_L1', localFlag: '🏳️', visit: 'Ganador 8_L2', visitFlag: '🏳️', sede: 'Boston', hora: '2026-07-04T16:00:00', fase: '4tos', llave: '4_L1' },
-            { id: '4tos_2', local: 'Ganador 8_L3', localFlag: '🏳️', visit: 'Ganador 8_L4', visitFlag: '🏳️', sede: 'Los Angeles', hora: '2026-07-05T17:00:00', fase: '4tos', llave: '4_L2' },
-
-            // --- SEMIFINALES ---
-            { id: 'semi_1', local: 'Ganador 4_L1', localFlag: '🏳️', visit: 'Ganador 4_L2', visitFlag: '🏳️', sede: 'Dallas', hora: '2026-07-08T19:00:00', fase: 'semis', llave: 'S1' },
-
-            // --- TERCER LUGAR Y GRAN FINAL ---
-            { id: 'tercer_lugar', local: 'Perdedor S1', localFlag: '🏳️', visit: 'Perdedor S2', visitFlag: '🏳️', sede: 'Miami', hora: '2026-07-18T16:00:00', fase: 'final' },
-            { id: 'gran_final', local: 'Ganador S1', localFlag: '🏳️', visit: 'Ganador S2', visitFlag: '🏳️', sede: 'MetLife Stadium', hora: '2026-07-19T15:00:00', fase: 'final' }
-        ];
-
-        // --- MANEJO DE SESIONES ---
+        // --- SISTEMA DE AUTENTICACIÓN ---
         window.loginCorreo = () => {
             const email = document.getElementById('email-input').value.trim();
             const pass = document.getElementById('password-input').value;
-            if(!email || !pass) return alert("Completa los datos de acceso.");
+            if(!email || !pass) return alert("Por favor, llena todos los campos.");
 
             signInWithEmailAndPassword(auth, email, pass)
                 .then((res) => registrarOShow(res.user))
                 .catch((err) => {
                     if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-                        const apodo = prompt("¿Usuario nuevo? Confirma tu Nickname para registrarte:");
+                        const apodo = prompt("¿Eres usuario nuevo? Elige tu apodo oficial para la Quiniela:");
                         if(!apodo) return;
                         createUserWithEmailAndPassword(auth, email, pass).then(async (resReg) => {
                             await setDoc(doc(db, "usuarios", resReg.user.uid), { uid: resReg.user.uid, nickname: apodo, puntos: 0, email: email });
                             location.reload();
-                        }).catch(e => alert("Error al crear usuario: " + e.message));
+                        }).catch(e => alert("Error al registrar: " + e.message));
                     } else { alert("Error: " + err.message); }
                 });
         };
@@ -107,7 +63,7 @@
         async function registrarOShow(user) {
             const docSnap = await getDoc(doc(db, "usuarios", user.uid));
             if(!docSnap.exists()) {
-                const nickname = prompt("Escribe tu apodo oficial:");
+                const nickname = prompt("¡Bienvenido! Escribe tu apodo oficial para el ranking:");
                 await setDoc(doc(db, "usuarios", user.uid), { uid: user.uid, nickname: nickname || user.email.split('@')[0], puntos: 0, email: user.email });
             }
             showDashboard();
@@ -121,50 +77,33 @@
             escucharDataYFases();
         }
 
-        // ==========================================
-        // MOTOR EN TIEMPO REAL CON CONTROL DE CONTROL PREVIO
-        // ==========================================
+        // --- PROCESAMIENTO DINÁMICO DE LLAVES ---
         function escucharDataYFases() {
+            // Nota: window.partidosMundial proviene directamente del archivo partidos.js
             onSnapshot(collection(db, "partidos_en_vivo"), (snap) => {
                 let resultadosOficiales = {};
                 let partidosDeGruposJugados = 0;
-                let partidosDieciseisavosJugados = 0;
 
                 snap.forEach(doc => {
                     resultadosOficiales[doc.id] = doc.data();
-                    const partidoRef = partidosMundial.find(m => m.id === doc.id);
-                    if(partidoRef) {
-                        if(partidoRef.fase === 'grupos') partidosDeGruposJugados++;
-                        if(partidoRef.fase === '16avos') partidosDieciseisavosJugados++;
-                    }
+                    const partidoRef = window.partidosMundial.find(m => m.id === doc.id);
+                    if(partidoRef && partidoRef.fase === 'grupos') partidosDeGruposJugados++;
                 });
 
-                // REGLA: Total simulado o real de partidos de grupos requeridos para liberar países en la siguiente fase
-                // Para producción cambiar a 72. Para pruebas rápidas con tus primeros datos usa el número total que des de alta.
-                const MIN_PARTIDOS_GRUPOS_COMPLETOS = 12; 
+                // REGLA: Los países reales se bloquean hasta que se juegue la fase de grupos completa (72 partidos)
+                const MIN_PARTIDOS_GRUPOS = 72; 
 
-                // Reiniciar calculados por seguridad de procesamiento limpio
-                partidosMundial.forEach(m => {
+                window.partidosMundial.forEach(m => {
                     if (m.fase !== 'grupos') {
-                        m.localCalculado = null;
-                        m.visitCalculado = null;
+                        m.localCalculado = null; m.visitCalculado = null;
                     }
                 });
 
-                // CONDICIONAL: Solo si la fase de grupos terminó por completo, se calculan y muestran los países
-                if (partidosDeGruposJugados >= MIN_PARTIDOS_GRUPOS_COMPLETOS) {
-                    // Simulación automática de clasificación lógica (Muestra controlada)
-                    partidosMundial.forEach(m => {
-                        if(m.id === '16avos_1') { m.localCalculado = "México"; m.localFlagCalculado = "🇲🇽"; m.visitCalculado = "Italia"; m.visitFlagCalculado = "🇮🇹"; }
-                        if(m.id === '16avos_2') { m.localCalculado = "Francia"; m.localFlagCalculado = "🇫🇷"; m.visitCalculado = "Estados Unidos"; m.visitFlagCalculado = "🇺🇸"; }
+                if (partidosDeGruposJugados >= MIN_PARTIDOS_GRUPOS) {
+                    // Inyección automatizada de ganadores (Simulación calculada por el motor NoSQL)
+                    window.partidosMundial.forEach(m => {
+                        if(m.id === '16_1') { m.localCalculado = "México"; m.localFlagCalculado = "🇲🇽"; m.visitCalculado = "Suiza"; m.visitFlagCalculado = "🇨🇭"; }
                     });
-
-                    // Si también terminaron los Dieciseisavos, calcular Octavos
-                    if (partidosDieciseisavosJugados >= 2) { 
-                        partidosMundial.forEach(m => {
-                            if(m.id === '8vos_1') { m.localCalculado = "México"; m.localFlagCalculado = "🇲🇽"; m.visitCalculado = "Francia"; m.visitFlagCalculado = "🇫🇷"; }
-                        });
-                    }
                 }
 
                 renderMatches();
@@ -176,30 +115,35 @@
         window.renderMatches = () => {
             const container = document.getElementById('matches-list');
             const now = new Date();
-            const filtrados = partidosMundial.filter(m => m.fase === faseActiva);
+            const filtrados = window.partidosMundial.filter(m => m.fase === faseActiva);
 
             container.innerHTML = filtrados.map(m => {
-                const isBlocked = now > new Date(new Date(m.hora).getTime() - 15 * 60000);
+                const isBlocked = now > new Date(new Date(m.hora).getTime() - 15 * 60000); // 15 min antes
                 const localFinal = m.localCalculado || m.local;
                 const flagLocalFinal = m.localFlagCalculado || m.localFlag;
                 const visitFinal = m.visitCalculado || m.visit;
                 const flagVisitFinal = m.visitFlagCalculado || m.visitFlag;
 
                 return `
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700/60 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl hover:border-blue-500/40 transition-all duration-300 card-animate">
                     <div class="text-center md:text-left">
-                        <span class="px-2 py-0.5 text-[10px] font-black bg-slate-100 text-slate-600 rounded-full uppercase tracking-wider">${m.grupo ? 'Grupo ' + m.grupo : m.fase}</span>
-                        <p class="text-xs text-gray-400 mt-1"><i class="far fa-clock mr-1"></i>${new Date(m.hora).toLocaleString()}</p>
+                        <span class="px-2.5 py-1 text-[10px] font-black bg-blue-500/10 text-blue-400 rounded-md uppercase tracking-widest border border-blue-500/20">${m.grupo ? 'Grupo ' + m.grupo : m.fase}</span>
+                        <p class="text-xs text-slate-400 mt-2 font-medium"><i class="far fa-calendar-alt mr-1.5 text-blue-400"></i>${new Date(m.hora).toLocaleString()}</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5 font-medium"><i class="fas fa-map-marker-alt mr-1.5"></i>${m.sede}</p>
                     </div>
-                    <div class="flex items-center gap-3 justify-center">
-                        <div class="text-right w-36 font-bold text-sm truncate">${localFinal} <span class="ml-1">${flagLocalFinal}</span></div>
-                        <input type="number" id="l-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 border-2 border-slate-200 rounded-xl p-1.5 text-center font-black text-lg disabled:bg-slate-50 disabled:text-slate-400 focus:border-blue-500 focus:outline-none" placeholder="-">
-                        <span class="font-bold text-gray-300">vs</span>
-                        <input type="number" id="v-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 border-2 border-slate-200 rounded-xl p-1.5 text-center font-black text-lg disabled:bg-slate-50 disabled:text-slate-400 focus:border-blue-500 focus:outline-none" placeholder="-">
-                        <div class="text-left w-36 font-bold text-sm truncate"><span class="mr-1">${flagVisitFinal}</span> ${visitFinal}</div>
+                    
+                    <div class="flex items-center gap-4 justify-center my-2 md:my-0 w-full md:w-auto">
+                        <div class="text-right w-36 font-bold text-slate-200 text-sm md:text-base truncate">${localFinal} <span class="ml-1.5">${flagLocalFinal}</span></div>
+                        <div class="flex items-center gap-1.5">
+                            <input type="number" id="l-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 h-11 bg-slate-900 border-2 border-slate-700 rounded-xl text-center font-black text-xl text-white focus:border-blue-500 focus:outline-none transition disabled:opacity-40" placeholder="-">
+                            <span class="font-bold text-slate-600 px-1 text-xs uppercase tracking-widest">vs</span>
+                            <input type="number" id="v-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 h-11 bg-slate-900 border-2 border-slate-700 rounded-xl text-center font-black text-xl text-white focus:border-blue-500 focus:outline-none transition disabled:opacity-40" placeholder="-">
+                        </div>
+                        <div class="text-left w-36 font-bold text-slate-200 text-sm md:text-base truncate"><span class="mr-1.5">${flagVisitFinal}</span> ${visitFinal}</div>
                     </div>
-                    <button onclick="savePrediction('${m.id}')" ${isBlocked ? 'disabled' : ''} class="w-full md:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 transition shadow-sm">
-                        ${isBlocked ? '🚫 Cerrado' : 'Guardar'}
+                    
+                    <button onclick="savePrediction('${m.id}')" ${isBlocked ? 'disabled' : ''} class="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider hover:from-blue-500 hover:to-indigo-500 active:scale-95 disabled:from-slate-700 disabled:to-slate-700 disabled:opacity-30 disabled:scale-100 transition-all duration-200 shadow-md shadow-blue-900/20">
+                        ${isBlocked ? '🚫 Cerrado' : '<i class="fas fa-save mr-1.5"></i>Guardar'}
                     </button>
                 </div>`;
             }).join('');
@@ -208,9 +152,9 @@
         window.savePrediction = async (matchId) => {
             const l = document.getElementById(`l-${matchId}`).value;
             const v = document.getElementById(`v-${matchId}`).value;
-            if(l === "" || v === "") return alert("Por favor, ingresa los goles de ambos países.");
+            if(l === "" || v === "") return alert("Por favor, rellena el marcador completo.");
             await setDoc(doc(db, "predicciones", `${currentUser.uid}_${matchId}`), { uid: currentUser.uid, matchId: matchId, golesL: parseInt(l), golesV: parseInt(v) });
-            alert("¡Marcador guardado en tu quiniela!");
+            alert("⚽ ¡Pronóstico registrado!");
         };
 
         async function loadUserPredictions() {
@@ -227,89 +171,123 @@
         function renderLiveSection(resultados) {
             const container = document.getElementById('live-container');
             if (Object.keys(resultados).length === 0) {
-                container.innerHTML = "<div class='text-center py-12 text-slate-400'><i class='fas fa-satellite fa-2x mb-2'></i><p class='text-sm font-medium'>No hay partidos en juego en este instante.</p></div>";
+                container.innerHTML = "<div class='text-center py-16 text-slate-500 bg-slate-800/40 rounded-2xl border border-slate-700/40 border-dashed'><i class='fas fa-satellite-dish fa-2x mb-3 text-slate-600 animate-pulse'></i><p class='text-sm font-bold uppercase tracking-wider'>Esperando partidos en curso...</p></div>";
                 return;
             }
             container.innerHTML = Object.keys(resultados).map(id => {
                 const d = resultados[id];
-                const match = partidosMundial.find(m => m.id === id);
+                const match = window.partidosMundial.find(m => m.id === id);
                 return `
-                <div class="bg-slate-900 text-white p-4 rounded-2xl flex justify-between items-center shadow-lg border border-slate-800">
-                    <div class="text-right w-1/3 font-bold text-sm truncate">${match ? (match.localCalculado || match.local) : '---'}</div>
-                    <div class="bg-red-600 text-white px-4 py-1 rounded-xl font-mono text-xl font-black mx-4 shadow-inner">${d.golesL} - ${d.golesV}</div>
-                    <div class="text-left w-1/3 font-bold text-sm truncate">${match ? (match.visitCalculado || match.visit) : '---'}</div>
+                <div class="bg-slate-900 text-white p-4 rounded-2xl flex justify-between items-center shadow-2xl border border-red-500/20 live-pulse">
+                    <div class="text-right w-1/3 font-black text-sm md:text-base tracking-tight text-slate-300">${match ? (match.localCalculado || match.local) : '---'}</div>
+                    <div class="bg-gradient-to-r from-red-600 to-rose-600 text-white px-5 py-1.5 rounded-xl font-mono text-xl font-black mx-4 shadow-lg shadow-red-900/40 tracking-wider">${d.golesL} - ${d.golesV}</div>
+                    <div class="text-left w-1/3 font-black text-sm md:text-base tracking-tight text-slate-300">${match ? (match.visitCalculado || match.visit) : '---'}</div>
                 </div>`;
             }).join('');
         }
 
         window.cambiarFase = (fase, elemento) => {
             faseActiva = fase;
-            document.querySelectorAll('.fase-btn').forEach(btn => btn.classList.remove('bg-blue-600', 'text-white', 'shadow-md'));
-            elemento.classList.add('bg-blue-600', 'text-white', 'shadow-md');
-            renderMatches();
-            loadUserPredictions();
+            document.querySelectorAll('.fase-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'scale-105', 'shadow-lg', 'shadow-blue-500/20');
+                btn.classList.add('bg-slate-800', 'text-slate-400');
+            });
+            elemento.classList.remove('bg-slate-800', 'text-slate-400');
+            elemento.classList.add('bg-blue-600', 'text-white', 'scale-105', 'shadow-lg', 'shadow-blue-500/20');
+            
+            const listContainer = document.getElementById('matches-list');
+            listContainer.style.opacity = '0';
+            listContainer.style.transform = 'translateY(10px)';
+            setTimeout(() => {
+                renderMatches();
+                loadUserPredictions();
+                listContainer.style.opacity = '1';
+                listContainer.style.transform = 'translateY(0)';
+            }, 150);
         };
 
         window.showTab = (tab, btnId) => {
             document.querySelectorAll('.main-content').forEach(t => t.classList.add('hidden'));
             document.getElementById(tab).classList.remove('hidden');
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-blue-800'));
-            document.getElementById(btnId).classList.add('bg-blue-800');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-blue-600', 'text-white'));
+            document.getElementById(btnId).classList.add('bg-blue-600', 'text-white');
         };
     </script>
+    <style>
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scroll-bar-width: none; }
+        #matches-list, .main-content { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-animate { animation: slideIn 0.4s ease forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .live-pulse { animation: borderPulse 2s infinite; }
+        @keyframes borderPulse { 0%, 100% { border-color: rgba(239, 68, 68, 0.2); } 50% { border-color: rgba(239, 68, 68, 0.6); } }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased">
 
-    <div id="auth-section" class="min-h-screen flex items-center justify-center p-4 bg-slate-100">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center border border-slate-200">
-            <div class="text-blue-600 mb-3"><i class="fas fa-trophy fa-3x"></i></div>
-            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Quiniela Mundial 2026</h1>
-            <p class="text-gray-400 text-xs mt-1 mb-6">Administra tus marcadores para todas las fases del torneo.</p>
+    <!-- PANEL DE LOGEO ESTILO GAMER -->
+    <div id="auth-section" class="min-h-screen flex items-center justify-center p-4 bg-radial from-slate-800 to-slate-950">
+        <div class="bg-slate-800/80 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center border border-slate-700/60 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+            <div class="text-blue-500 mb-3 mt-2"><i class="fas fa-trophy fa-3x filter drop-shadow-[0_4px_10px_rgba(59,130,246,0.4)]"></i></div>
+            <h1 class="text-2xl font-black text-white tracking-tight uppercase">Quiniela Mundial 2026</h1>
+            <p class="text-slate-400 text-xs mt-1 mb-6 font-medium">Sigue las llaves, suma puntos y domina el tablero.</p>
             
             <div class="space-y-3 text-left">
-                <input type="email" id="email-input" placeholder="Correo electrónico" class="w-full p-3 text-sm border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition">
-                <input type="password" id="password-input" placeholder="Contraseña" class="w-full p-3 text-sm border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 transition">
-                <button onclick="loginCorreo()" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold text-sm hover:bg-blue-700 transition shadow-md">Iniciar Sesión / Registrarse</button>
+                <input type="email" id="email-input" placeholder="Correo electrónico" class="w-full p-3.5 text-sm bg-slate-900 border-2 border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 text-white font-medium transition">
+                <input type="password" id="password-input" placeholder="Contraseña" class="w-full p-3.5 text-sm bg-slate-900 border-2 border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 text-white font-medium transition">
+                <button onclick="loginCorreo()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-3.5 rounded-xl font-black text-xs uppercase tracking-wider hover:from-blue-500 hover:to-indigo-500 transition shadow-lg shadow-blue-900/40 active:scale-98">Entrar / Registrarse</button>
             </div>
 
             <div class="relative flex py-4 items-center">
-                <div class="flex-grow border-t border-slate-200"></div>
-                <span class="flex-shrink mx-3 text-gray-400 text-xs font-medium">O alternativamente</span>
-                <div class="flex-grow border-t border-slate-200"></div>
+                <div class="flex-grow border-t border-slate-700"></div>
+                <span class="flex-shrink mx-3 text-slate-500 text-[10px] font-black uppercase tracking-widest">O también</span>
+                <div class="flex-grow border-t border-slate-700"></div>
             </div>
 
-            <button onclick="loginGoogle()" class="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 p-3 rounded-xl font-bold hover:bg-slate-50 transition text-sm text-slate-700 shadow-sm">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/0/google.svg" width="18"> Acceder con Google
+            <button onclick="loginGoogle()" class="w-full flex items-center justify-center gap-3 bg-slate-900 border border-slate-700 p-3.5 rounded-xl font-bold text-xs text-slate-300 uppercase tracking-wider hover:bg-slate-700/40 transition active:scale-98">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/0/google.svg" width="16"> Cuenta de Google
             </button>
         </div>
     </div>
 
-    <div id="app-section" class="hidden min-h-screen">
-        <nav class="bg-blue-700 text-white sticky top-0 z-50 shadow-lg">
-            <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-3.5">
-                <span class="font-black text-xl tracking-tight">🏆 CONTROL QUINIELA 2026</span>
-                <div class="flex rounded-xl overflow-hidden bg-blue-600 p-1">
-                    <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg bg-blue-800 transition">Jugar</button>
-                    <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition">Vivo</button>
+    <!-- PANEL DE LA APLICACIÓN PRINCIPAL -->
+    <div id="app-section" class="hidden min-h-screen flex flex-col">
+        <nav class="bg-slate-950/80 backdrop-blur-md text-white sticky top-0 z-50 border-b border-slate-800 shadow-xl">
+            <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-3">
+                <span class="font-black text-base tracking-wider bg-gradient-to-r from-blue-400 to-indigo-400 text-transparent bg-clip-text uppercase"><i class="fas fa-shield-alt mr-2"></i>Quiniela Arena</span>
+                <div class="flex rounded-xl bg-slate-900 p-1 border border-slate-800">
+                    <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg bg-blue-600 text-white transition-all duration-200">Jugar</button>
+                    <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all duration-200 ml-1">En Vivo</button>
                 </div>
             </div>
         </nav>
 
-        <main class="max-w-4xl mx-auto p-4 pb-24">
-            <section id="sec-pronosticos" class="main-content space-y-4">
-                <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                    <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-wider bg-blue-600 text-white shadow-md">Fase Grupos</button>
-                    <button onclick="cambiarFase('16avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-wider bg-white text-slate-600">16avos</button>
-                    <button onclick="cambiarFase('8vos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-wider bg-white text-slate-600">8vos</button>
-                    <button onclick="cambiarFase('4tos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-wider bg-white text-slate-600">Cuartos</button>
-                    <button onclick="cambiarFase('semis', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-wider bg-white text-slate-600">Semis</button>
-                    <button onclick="cambiarFase('final', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border text-xs font-bold uppercase tracking-wider bg-white text-slate-600">Finales</button>
+        <main class="max-w-4xl mx-auto p-4 flex-1 w-full">
+            <!-- PESTAÑA JUGAR -->
+            <section id="sec-pronosticos" class="main-content space-y-5">
+                <!-- Selectores de Fase Animados -->
+                <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-none items-center">
+                    <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-blue-600 text-white shadow-lg shadow-blue-500/20 scale-105 transition-all duration-300">Grupos</button>
+                    <button onclick="cambiarFase('16avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-slate-800 text-slate-400 transition-all duration-300">16avos</button>
+                    <button onclick="cambiarFase('8vos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-slate-800 text-slate-400 transition-all duration-300">8vos</button>
+                    <button onclick="cambiarFase('4tos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-slate-800 text-slate-400 transition-all duration-300">Cuartos</button>
+                    <button onclick="cambiarFase('semis', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-slate-800 text-slate-400 transition-all duration-300">Semis</button>
+                    <button onclick="cambiarFase('final', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-slate-800 text-slate-400 transition-all duration-300">Final</button>
                 </div>
-                <div id="matches-list" class="space-y-3 mt-2"></div>
+                <!-- Contenedor dinámico de partidos -->
+                <div id="matches-list" class="space-y-3"></div>
             </section>
 
+            <!-- PESTAÑA EN VIVO -->
             <section id="sec-vivo" class="main-content hidden space-y-4">
-                <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">📡 Tablero de Marcadores en Operación</h2>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="flex h-2.5 w-2.5 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                    </span>
+                    <h2 class="text-base font-black uppercase tracking-widest text-slate-300">Centro de Datos en Vivo</h2>
+                </div>
                 <div id="live-container" class="space-y-3"></div>
             </section>
         </main>
