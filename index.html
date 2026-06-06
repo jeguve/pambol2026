@@ -14,7 +14,7 @@
         // ==========================================
         // REEMPLAZA ESTO CON TUS CREDENCIALES DE FIREBASE
         // ==========================================
-      const firebaseConfig = {
+     const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -46,24 +46,25 @@
 
         let mapeoEquiposProcesados = {};
 
-        // --- LOGIN CON REDIRECCIÓN (FIJA EL PROBLEMA DE GOOGLE SITES) ---
+        // --- LOGIN CON REDIRECCIÓN ---
         window.loginGoogle = () => {
-            signInWithRedirect(auth, provider).catch(err => alert("Error al redireccionar: " + err.message));
+            signInWithRedirect(auth, provider).catch(err => alert("Error en Google Auth: " + err.message));
         };
 
         // --- LOGIN TRADICIONAL CON CORREO Y CONTRASEÑA ---
         window.loginCorreo = () => {
             const email = document.getElementById('email-input').value;
-            const pass = document.getElementById('pass-input').value;
-            if(!email || !pass) return alert("Completa los campos.");
+            const pass = document.getElementById('password-input').value; // CORREGIDO: ID unificado
+            if(!email || !pass) return alert("Por favor ingresa correo y contraseña.");
 
             signInWithEmailAndPassword(auth, email, pass)
                 .then((res) => checkUser(res.user))
                 .catch((err) => {
-                    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-                        // Si el usuario no existe, lo registra automáticamente
-                        const apodo = prompt("No encontramos tu cuenta, vamos a registrarte. Introduce tu apodo:");
+                    // Manejo si el usuario no existe para crearlo automáticamente
+                    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-email') {
+                        const apodo = prompt("No encontramos una cuenta con este correo. Si deseas registrarte como usuario nuevo, introduce tu apodo mundialista:");
                         if(!apodo) return;
+                        
                         createUserWithEmailAndPassword(auth, email, pass)
                             .then(async (resReg) => {
                                 await setDoc(doc(db, "usuarios", resReg.user.uid), {
@@ -72,34 +73,41 @@
                                     puntos: 0,
                                     email: email
                                 });
+                                alert("¡Registro exitoso!");
                                 location.reload();
-                            }).catch(e => alert("Error al registrar: " + e.message));
+                            }).catch(e => alert("Error al registrar cuenta nueva: " + e.message));
                     } else {
-                        alert("Error: " + err.message);
+                        alert("Error de autenticación: " + err.message);
                     }
                 });
         };
 
-        // Captura el resultado de la redirección al volver a la página
+        // Captura el resultado del flujo de redirección de Google al volver
         getRedirectResult(auth).then(async (result) => {
             if (result && result.user) {
                 await checkUser(result.user);
             }
-        }).catch(err => console.log("Redirección manejada o vacía."));
+        }).catch(err => {
+            alert("Error al procesar el retorno de Google: " + err.message);
+        });
 
         async function checkUser(user) {
-            const userRef = doc(db, "usuarios", user.uid);
-            const userDoc = await getDoc(userRef);
-            if (!userDoc.exists()) {
-                const nickname = prompt("Introduce tu apodo de usuario para la Quiniela:");
-                await setDoc(userRef, {
-                    uid: user.uid,
-                    nickname: nickname || user.email.split('@')[0],
-                    puntos: 0,
-                    email: user.email
-                });
+            try {
+                const userRef = doc(db, "usuarios", user.uid);
+                const userDoc = await getDoc(userRef);
+                if (!userDoc.exists()) {
+                    const nickname = prompt("¡Bienvenido! Introduce tu apodo para la tabla de clasificación general:");
+                    await setDoc(userRef, {
+                        uid: user.uid,
+                        nickname: nickname || user.email.split('@')[0],
+                        puntos: 0,
+                        email: user.email
+                    });
+                }
+                renderAppLayout();
+            } catch (error) {
+                alert("Error en la base de datos de usuarios: " + error.message);
             }
-            renderAppLayout();
         }
 
         onAuthStateChanged(auth, (user) => {
@@ -189,12 +197,12 @@
             const partidosFase = partidosMundial.filter(m => m.fase === faseActiva);
 
             if(partidosFase.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-400 py-8">Fase no disponible.</p>`;
+                container.innerHTML = `<p class="text-center text-gray-400 py-8">Fase de eliminatorias no disponible aún.</p>`;
                 return;
             }
 
             container.innerHTML = partidosFase.map(m => {
-                const isBlocked = now > new Date(new Date(m.hora).getTime() - 15 * 60000); // 15 min antes
+                const isBlocked = now > new Date(new Date(m.hora).getTime() - 15 * 60000); // 15 minutos antes
                 const nombreLocal = m.localCalculado || m.local;
                 const flagLocal = m.localFlagCalculado || m.localFlag;
                 const nombreVisit = m.visitCalculado || m.visit;
@@ -229,14 +237,18 @@
         };
 
         async function loadPredictions() {
-            const preds = await getDocs(collection(db, "predicciones"));
-            preds.forEach(doc => {
-                const data = doc.data();
-                if(data.uid === currentUser.uid) {
-                    if(document.getElementById(`l-${data.matchId}`)) document.getElementById(`l-${data.matchId}`).value = data.golesL;
-                    if(document.getElementById(`v-${data.matchId}`)) document.getElementById(`v-${data.matchId}`).value = data.golesV;
-                }
-            });
+            try {
+                const preds = await getDocs(collection(db, "predicciones"));
+                preds.forEach(doc => {
+                    const data = doc.data();
+                    if(data.uid === currentUser.uid) {
+                        if(document.getElementById(`l-${data.matchId}`)) document.getElementById(`l-${data.matchId}`).value = data.golesL;
+                        if(document.getElementById(`v-${data.matchId}`)) document.getElementById(`v-${data.matchId}`).value = data.golesV;
+                    }
+                });
+            } catch (e) {
+                console.log("Esperando inicialización de datos de predicciones.");
+            }
         }
 
         function renderLiveTab(resultadosPartidos) {
@@ -288,7 +300,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
 
-    <!-- LOGIN MEJORADO CON CORREO -->
+    <!-- LOGIN MEJORADO -->
     <div id="auth-section" class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm text-center border border-slate-100">
             <div class="text-blue-600 mb-2"><i class="fas fa-trophy fa-2x"></i></div>
@@ -308,7 +320,7 @@
                 <div class="flex-grow border-t border-gray-200"></div>
             </div>
 
-            <!-- Botón Google por Redirección -->
+            <!-- Botón Google -->
             <button onclick="loginGoogle()" class="mt-2 w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 p-2.5 rounded-xl font-bold hover:bg-gray-50 transition text-sm text-gray-700">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/0/google.svg" width="18"> Continuar con Google
             </button>
