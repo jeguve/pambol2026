@@ -14,7 +14,7 @@
         // ==========================================
         // REEMPLAZA ESTO CON TUS CREDENCIALES DE FIREBASE
         // ==========================================
-     const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -33,7 +33,6 @@
         let currentUser = null;
         let faseActiva = 'grupos';
 
-        // Calendario Maestro del Mundial
         const partidosMundial = [
             { id: 'g1', local: 'México', localFlag: '🇲🇽', visit: 'Francia', visitFlag: '🇫🇷', sede: 'Estadio Azteca', hora: '2026-06-11T15:00:00', fase: 'grupos', grupo: 'A' },
             { id: 'g2', local: 'Sudáfrica', localFlag: '🇿🇦', visit: 'Uruguay', visitFlag: '🇺🇾', sede: 'Estadio Chivas', hora: '2026-06-12T16:00:00', fase: 'grupos', grupo: 'A' },
@@ -44,51 +43,52 @@
             { id: '8vos_1', local: 'Ganador L1', localFlag: '🏳️', visit: 'Ganador L2', visitFlag: '🏳️', sede: 'AT&T Stadium', hora: '2026-06-28T17:00:00', fase: '8vos', llave: 'O1' }
         ];
 
-        let mapeoEquiposProcesados = {};
-
-        // --- LOGIN CON REDIRECCIÓN ---
         window.loginGoogle = () => {
-            signInWithRedirect(auth, provider).catch(err => alert("Error en Google Auth: " + err.message));
+            signInWithRedirect(auth, provider).catch(err => alert("Error Google: " + err.message));
         };
 
-        // --- LOGIN TRADICIONAL CON CORREO Y CONTRASEÑA ---
         window.loginCorreo = () => {
-            const email = document.getElementById('email-input').value;
-            const pass = document.getElementById('password-input').value; // CORREGIDO: ID unificado
-            if(!email || !pass) return alert("Por favor ingresa correo y contraseña.");
+            const email = document.getElementById('email-input').value.trim();
+            const pass = document.getElementById('password-input').value;
+            if(!email || !pass) return alert("Ingresa correo y contraseña.");
 
             signInWithEmailAndPassword(auth, email, pass)
                 .then((res) => checkUser(res.user))
                 .catch((err) => {
-                    // Manejo si el usuario no existe para crearlo automáticamente
+                    // Si el usuario no existe, inicia flujo de registro
                     if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-email') {
-                        const apodo = prompt("No encontramos una cuenta con este correo. Si deseas registrarte como usuario nuevo, introduce tu apodo mundialista:");
+                        const apodo = prompt("Email no registrado. Si deseas crear una cuenta nueva con estos datos, escribe tu apodo:");
                         if(!apodo) return;
                         
                         createUserWithEmailAndPassword(auth, email, pass)
                             .then(async (resReg) => {
-                                await setDoc(doc(db, "usuarios", resReg.user.uid), {
-                                    uid: resReg.user.uid,
-                                    nickname: apodo,
-                                    puntos: 0,
-                                    email: email
-                                });
-                                alert("¡Registro exitoso!");
-                                location.reload();
-                            }).catch(e => alert("Error al registrar cuenta nueva: " + e.message));
+                                try {
+                                    await setDoc(doc(db, "usuarios", resReg.user.uid), {
+                                        uid: resReg.user.uid,
+                                        nickname: apodo,
+                                        puntos: 0,
+                                        email: email
+                                    });
+                                    alert("¡Usuario registrado con éxito!");
+                                    renderAppLayout();
+                                } catch (dbError) {
+                                    alert("Cuenta creada, pero falló la base de datos Firestore. Revisa las Reglas en tu consola de Firebase. Detalle: " + dbError.message);
+                                    renderAppLayout(); // Fuerza la entrada como modo emergencia
+                                }
+                            }).catch(e => alert("Error al registrar: " + e.message));
                     } else {
-                        alert("Error de autenticación: " + err.message);
+                        alert("Error: " + err.message);
                     }
                 });
         };
 
-        // Captura el resultado del flujo de redirección de Google al volver
+        // Captura el regreso de Google
         getRedirectResult(auth).then(async (result) => {
             if (result && result.user) {
                 await checkUser(result.user);
             }
         }).catch(err => {
-            alert("Error al procesar el retorno de Google: " + err.message);
+            alert("Error al volver de Google: " + err.message + "\nVerifica si agregaste correctamente el dominio en Firebase.");
         });
 
         async function checkUser(user) {
@@ -96,7 +96,7 @@
                 const userRef = doc(db, "usuarios", user.uid);
                 const userDoc = await getDoc(userRef);
                 if (!userDoc.exists()) {
-                    const nickname = prompt("¡Bienvenido! Introduce tu apodo para la tabla de clasificación general:");
+                    const nickname = prompt("¡Bienvenido! Elige tu apodo para la competencia:");
                     await setDoc(userRef, {
                         uid: user.uid,
                         nickname: nickname || user.email.split('@')[0],
@@ -106,7 +106,8 @@
                 }
                 renderAppLayout();
             } catch (error) {
-                alert("Error en la base de datos de usuarios: " + error.message);
+                alert("Alerta Base de Datos: " + error.message + "\nEntrando en modo de visualización.");
+                renderAppLayout(); // Forzar renderizado para que no se quede trabado en el login
             }
         }
 
@@ -127,7 +128,6 @@
             loadLeaderboard();
         }
 
-        // --- SISTEMA AUTOMÁTICO DE LLAVES ---
         function escucharResultadosOficiales() {
             onSnapshot(collection(db, "partidos_en_vivo"), (snap) => {
                 let tablaGrupos = { A: {}, B: {} };
@@ -164,7 +164,7 @@
                     if (equiposOrdenados[1]) posicionesFinales[`2${g}`] = equiposOrdenados[1];
                 });
 
-                mapeoEquiposProcesados = {};
+                let mapeoEquiposProcesados = {};
                 partidosMundial.forEach(m => {
                     if (posicionesFinales[m.local]) { m.localCalculado = posicionesFinales[m.local].nombre; m.localFlagCalculado = posicionesFinales[m.local].flag; }
                     else { m.localCalculado = m.local; m.localFlagCalculado = m.localFlag; }
@@ -197,17 +197,12 @@
             const partidosFase = partidosMundial.filter(m => m.fase === faseActiva);
 
             if(partidosFase.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-400 py-8">Fase de eliminatorias no disponible aún.</p>`;
+                container.innerHTML = `<p class="text-center text-gray-400 py-8">No disponible.</p>`;
                 return;
             }
 
             container.innerHTML = partidosFase.map(m => {
-                const isBlocked = now > new Date(new Date(m.hora).getTime() - 15 * 60000); // 15 minutos antes
-                const nombreLocal = m.localCalculado || m.local;
-                const flagLocal = m.localFlagCalculado || m.localFlag;
-                const nombreVisit = m.visitCalculado || m.visit;
-                const flagVisit = m.visitFlagCalculado || m.visitFlag;
-
+                const isBlocked = now > new Date(new Date(m.hora).getTime() - 15 * 60000);
                 return `
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div class="text-center md:text-left">
@@ -215,11 +210,11 @@
                         <p class="text-xs text-gray-500">${new Date(m.hora).toLocaleString()} | ${m.sede}</p>
                     </div>
                     <div class="flex items-center gap-3 justify-center">
-                        <div class="text-right w-32 font-semibold text-sm truncate">${nombreLocal} <span class="ml-1">${flagLocal}</span></div>
+                        <div class="text-right w-32 font-semibold text-sm truncate">${m.localCalculado || m.local} <span class="ml-1">${m.localFlagCalculado || m.localFlag}</span></div>
                         <input type="number" id="l-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 border-2 rounded-lg p-1 text-center font-bold text-lg disabled:bg-gray-100" placeholder="-">
                         <span class="font-bold text-gray-400">-</span>
                         <input type="number" id="v-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 border-2 rounded-lg p-1 text-center font-bold text-lg disabled:bg-gray-100" placeholder="-">
-                        <div class="text-left w-32 font-semibold text-sm truncate"><span class="mr-1">${flagVisit}</span> ${nombreVisit}</div>
+                        <div class="text-left w-32 font-semibold text-sm truncate"><span class="mr-1">${m.visitFlagCalculado || m.visitFlag}</span> ${m.visitCalculado || m.visit}</div>
                     </div>
                     <button onclick="savePrediction('${m.id}')" ${isBlocked ? 'disabled' : ''} class="w-full md:w-auto bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 transition">
                         ${isBlocked ? '🚫 Cerrado' : 'Guardar'}
@@ -231,9 +226,13 @@
         window.savePrediction = async (matchId) => {
             const l = document.getElementById(`l-${matchId}`).value;
             const v = document.getElementById(`v-${matchId}`).value;
-            if(l === "" || v === "") return alert("Por favor, introduce el marcador completo.");
-            await setDoc(doc(db, "predicciones", `${currentUser.uid}_${matchId}`), { uid: currentUser.uid, matchId: matchId, golesL: parseInt(l), golesV: parseInt(v), timestamp: new Date() });
-            alert("¡Predicción guardada!");
+            if(l === "" || v === "") return alert("Introduce marcador completo.");
+            try {
+                await setDoc(doc(db, "predicciones", `${currentUser.uid}_${matchId}`), { uid: currentUser.uid, matchId: matchId, golesL: parseInt(l), golesV: parseInt(v), timestamp: new Date() });
+                alert("¡Guardado!");
+            } catch(e) {
+                alert("Error al guardar: " + e.message + "\nVerifica las reglas de escritura en Firestore.");
+            }
         };
 
         async function loadPredictions() {
@@ -246,15 +245,13 @@
                         if(document.getElementById(`v-${data.matchId}`)) document.getElementById(`v-${data.matchId}`).value = data.golesV;
                     }
                 });
-            } catch (e) {
-                console.log("Esperando inicialización de datos de predicciones.");
-            }
+            } catch (e) {}
         }
 
         function renderLiveTab(resultadosPartidos) {
             const container = document.getElementById('live-container');
             if (Object.keys(resultadosPartidos).length === 0) {
-                container.innerHTML = "<p class='text-gray-400 text-center py-8 text-sm'>Esperando el silbatazo inicial del Mundial...</p>";
+                container.innerHTML = "<p class='text-gray-400 text-center py-8 text-sm'>Esperando partidos...</p>";
                 return;
             }
             container.innerHTML = Object.keys(resultadosPartidos).map(id => {
@@ -262,24 +259,26 @@
                 const matchOriginal = partidosMundial.find(m => m.id === id);
                 return `
                 <div class="bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center shadow-md">
-                    <div class="text-right w-1/3 font-medium text-sm truncate">${matchOriginal ? matchOriginal.localCalculado : '---'}</div>
+                    <div class="text-right w-1/3 font-medium text-sm truncate">${matchOriginal ? (matchOriginal.localCalculado || matchOriginal.local) : '---'}</div>
                     <div class="bg-red-600 px-4 py-1.5 rounded-lg font-mono text-xl font-bold mx-2">${d.golesL} - ${d.golesV}</div>
-                    <div class="text-left w-1/3 font-medium text-sm truncate">${matchOriginal ? matchOriginal.visitCalculado : '---'}</div>
+                    <div class="text-left w-1/3 font-medium text-sm truncate">${matchOriginal ? (matchOriginal.visitCalculado || matchOriginal.visit) : '---'}</div>
                 </div>`;
             }).join('');
         }
 
         function loadLeaderboard() {
-            onSnapshot(query(collection(db, "usuarios"), orderBy("puntos", "desc")), (snap) => {
-                const list = document.getElementById('leaderboard-list');
-                list.innerHTML = snap.docs.map((doc, index) => `
-                    <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-sm">
-                        <td class="p-4 text-center font-bold text-gray-500">${index + 1}</td>
-                        <td class="p-4 font-semibold text-gray-800">${doc.data().nickname}</td>
-                        <td class="p-4 text-center text-blue-600 font-bold">${doc.data().puntos} pts</td>
-                    </tr>
-                `).join('');
-            });
+            try {
+                onSnapshot(query(collection(db, "usuarios"), orderBy("puntos", "desc")), (snap) => {
+                    const list = document.getElementById('leaderboard-list');
+                    list.innerHTML = snap.docs.map((doc, index) => `
+                        <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-sm">
+                            <td class="p-4 text-center font-bold text-gray-500">${index + 1}</td>
+                            <td class="p-4 font-semibold text-gray-800">${doc.data().nickname}</td>
+                            <td class="p-4 text-center text-blue-600 font-bold">${doc.data().puntos} pts</td>
+                        </tr>
+                    `).join('');
+                });
+            } catch(e){}
         }
 
         window.cambiarFase = (fase, elemento) => {
@@ -300,14 +299,13 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
 
-    <!-- LOGIN MEJORADO -->
+    <!-- LOGIN PANEL -->
     <div id="auth-section" class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm text-center border border-slate-100">
             <div class="text-blue-600 mb-2"><i class="fas fa-trophy fa-2x"></i></div>
             <h1 class="text-xl font-black text-slate-900 mb-1">Quiniela Mundial 2026</h1>
-            <p class="text-gray-400 text-xs mb-4">Accede de la forma que prefieras para guardar tus pronósticos.</p>
+            <p class="text-gray-400 text-xs mb-4">Accede para guardar tus pronósticos.</p>
             
-            <!-- Opción Correo / Password -->
             <div class="space-y-2 mb-4 text-left">
                 <input type="email" id="email-input" placeholder="Correo electrónico" class="w-full p-2.5 text-sm border-2 rounded-xl focus:outline-none focus:border-blue-500">
                 <input type="password" id="password-input" placeholder="Contraseña" class="w-full p-2.5 text-sm border-2 rounded-xl focus:outline-none focus:border-blue-500">
@@ -320,14 +318,13 @@
                 <div class="flex-grow border-t border-gray-200"></div>
             </div>
 
-            <!-- Botón Google -->
             <button onclick="loginGoogle()" class="mt-2 w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 p-2.5 rounded-xl font-bold hover:bg-gray-50 transition text-sm text-gray-700">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/0/google.svg" width="18"> Continuar con Google
             </button>
         </div>
     </div>
 
-    <!-- APLICACIÓN PRINCIPAL -->
+    <!-- MAIN APP PANEL -->
     <div id="app-section" class="hidden min-h-screen">
         <nav class="bg-blue-700 text-white sticky top-0 z-50 shadow-md">
             <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-3">
