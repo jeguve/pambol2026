@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
+    <!-- CARGA DEL CALENDARIO OFICIAL MAESTRO -->
     <script src="partidos.js"></script>
 
     <script type="module">
@@ -17,7 +18,7 @@
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-       const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -45,7 +46,7 @@
                 .then((res) => registrarOShow(res.user))
                 .catch((err) => {
                     if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-                        const apodo = prompt("¿Eres usuario nuevo? Elige tu apodo oficial para la Quiniela:");
+                        const apodo = prompt("¿Eres usuario nuevo? Elige tu apodo oficial:");
                         if(!apodo) return;
                         createUserWithEmailAndPassword(auth, email, pass).then(async (resReg) => {
                             await setDoc(doc(db, "usuarios", resReg.user.uid), { uid: resReg.user.uid, nickname: apodo, puntos: 0, email: email });
@@ -61,7 +62,7 @@
         async function registrarOShow(user) {
             const docSnap = await getDoc(doc(db, "usuarios", user.uid));
             if(!docSnap.exists()) {
-                const nickname = prompt("¡Bienvenido! Escribe tu apodo oficial para el ranking:");
+                const nickname = prompt("¡Bienvenido! Elige tu apodo:");
                 await setDoc(doc(db, "usuarios", user.uid), { uid: user.uid, nickname: nickname || user.email.split('@')[0], puntos: 0, email: user.email });
             }
             showDashboard();
@@ -69,18 +70,15 @@
 
         onAuthStateChanged(auth, (user) => { if(user) { currentUser = user; showDashboard(); } });
 
-        // --- MANEJO DE FECHAS EN FORMATO DE MÉXICO (DD/MM/AAAA) ---
+        // --- FORMATO DE FECHA MÉXICO (DD/MM/AAAA) ---
         function formatearFechaMX(dateString) {
             const fecha = new Date(dateString);
             if (isNaN(fecha.getTime())) return dateString;
-            
             const dia = String(fecha.getDate()).padStart(2, '0');
             const mes = String(fecha.getMonth() + 1).padStart(2, '0');
             const anio = fecha.getFullYear();
-            
             const hora = String(fecha.getHours()).padStart(2, '0');
             const minutos = String(fecha.getMinutes()).padStart(2, '0');
-            
             return `${dia}/${mes}/${anio}, ${hora}:${minutos} hrs`;
         }
 
@@ -126,14 +124,13 @@
             const now = new Date();
             const filtrados = window.partidosMundial.filter(m => m.fase === faseActiva);
 
-            // Mapeo estético de las etiquetas de fase internas a visuales
             const tagsFases = {
                 'grupos': 'Fase de Grupos',
                 '32avos': '32avos de Final',
                 '16avos': '16avos de Final',
                 'cuartos': 'Cuartos de Final',
                 'semis': 'Semifinal',
-                'final': 'Gran Final'
+                'final': 'Finales'
             };
 
             container.innerHTML = filtrados.map(m => {
@@ -145,28 +142,35 @@
 
                 return `
                 <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700/60 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl hover:border-blue-500/40 transition-all duration-300 card-animate">
-                    <div class="text-center md:text-left">
+                    <div class="text-center md:text-left min-w-[140px]">
                         <span class="px-2.5 py-1 text-[10px] font-black bg-blue-500/10 text-blue-400 rounded-md uppercase tracking-widest border border-blue-500/20">${m.grupo ? 'Grupo ' + m.grupo : tagsFases[m.fase]}</span>
-                        <p class="text-xs text-slate-400 mt-2 font-medium"><i class="far fa-calendar-alt mr-1.5 text-blue-400"></i>${formatearFechaMX(m.hora)}</p>
-                        <p class="text-[11px] text-slate-500 mt-0.5 font-medium"><i class="fas fa-map-marker-alt mr-1.5"></i>${m.sede}</p>
+                        <p class="text-[11px] text-slate-400 mt-2 font-medium"><i class="far fa-clock mr-1 text-blue-400"></i> ${formatearFechaMX(m.hora)}</p>
+                        <p class="text-[10px] text-slate-500 mt-0.5 font-medium truncate"><i class="fas fa-map-marker-alt mr-1"></i> ${m.sede}</p>
                     </div>
                     
-                    <div class="flex items-center gap-4 justify-center my-2 md:my-0 w-full md:w-auto">
-                        <div class="text-right w-36 font-bold text-slate-200 text-sm md:text-base truncate">
-                            ${localFinal} <span class="ml-2 text-xl inline-block align-middle">${flagLocalFinal}</span>
+                    <div class="flex items-center gap-2 justify-center w-full md:w-auto flex-1 px-2">
+                        <!-- LOCAL -->
+                        <div class="flex items-center justify-end gap-2 w-1/3 text-right">
+                            <span class="font-bold text-slate-200 text-sm md:text-base tracking-tight truncate">${localFinal}</span>
+                            <span class="text-2xl flex-shrink-0 w-8 text-center">${flagLocalFinal}</span>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <input type="number" id="l-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 h-11 bg-slate-900 border-2 border-slate-700 rounded-xl text-center font-black text-xl text-white focus:border-blue-500 focus:outline-none transition disabled:opacity-40" placeholder="-">
-                            <span class="font-bold text-slate-600 px-1 text-xs uppercase tracking-widest">vs</span>
-                            <input type="number" id="v-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 h-11 bg-slate-900 border-2 border-slate-700 rounded-xl text-center font-black text-xl text-white focus:border-blue-500 focus:outline-none transition disabled:opacity-40" placeholder="-">
+                        
+                        <!-- MARCADOR -->
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="l-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-11 h-10 bg-slate-900 border border-slate-700 rounded-xl text-center font-black text-lg text-white focus:border-blue-500 focus:outline-none transition disabled:opacity-40" placeholder="-">
+                            <span class="font-bold text-slate-600 px-0.5 text-[11px] uppercase tracking-widest">vs</span>
+                            <input type="number" id="v-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-11 h-10 bg-slate-900 border border-slate-700 rounded-xl text-center font-black text-lg text-white focus:border-blue-500 focus:outline-none transition disabled:opacity-40" placeholder="-">
                         </div>
-                        <div class="text-left w-36 font-bold text-slate-200 text-sm md:text-base truncate">
-                            <span class="mr-2 text-xl inline-block align-middle">${flagVisitFinal}</span> ${visitFinal}
+                        
+                        <!-- VISITANTE -->
+                        <div class="flex items-center justify-start gap-2 w-1/3 text-left">
+                            <span class="text-2xl flex-shrink-0 w-8 text-center">${flagVisitFinal}</span>
+                            <span class="font-bold text-slate-200 text-sm md:text-base tracking-tight truncate">${visitFinal}</span>
                         </div>
                     </div>
                     
-                    <button onclick="savePrediction('${m.id}')" ${isBlocked ? 'disabled' : ''} class="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider hover:from-blue-500 hover:to-indigo-500 active:scale-95 disabled:from-slate-700 disabled:to-slate-700 disabled:opacity-30 disabled:scale-100 transition-all duration-200 shadow-md shadow-blue-900/20">
-                        ${isBlocked ? '🚫 Cerrado' : '<i class="fas fa-save mr-1.5"></i>Guardar'}
+                    <button onclick="savePrediction('${m.id}')" ${isBlocked ? 'disabled' : ''} class="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:from-blue-500 hover:to-indigo-500 active:scale-95 disabled:from-slate-700 disabled:to-slate-700 disabled:opacity-30 disabled:scale-100 transition-all duration-200 shadow-md">
+                        ${isBlocked ? '🚫 Cerrado' : 'Guardar'}
                     </button>
                 </div>`;
             }).join('');
@@ -202,9 +206,9 @@
                 const match = window.partidosMundial.find(m => m.id === id);
                 return `
                 <div class="bg-slate-900 text-white p-4 rounded-2xl flex justify-between items-center shadow-2xl border border-red-500/20 live-pulse">
-                    <div class="text-right w-1/3 font-black text-sm md:text-base tracking-tight text-slate-300">${match ? (match.localCalculado || match.local) : '---'}</div>
-                    <div class="bg-gradient-to-r from-red-600 to-rose-600 text-white px-5 py-1.5 rounded-xl font-mono text-xl font-black mx-4 shadow-lg shadow-red-900/40 tracking-wider">${d.golesL} - ${d.golesV}</div>
-                    <div class="text-left w-1/3 font-black text-sm md:text-base tracking-tight text-slate-300">${match ? (match.visitCalculado || match.visit) : '---'}</div>
+                    <div class="text-right w-1/3 font-black text-sm tracking-tight text-slate-300">${match ? (match.localCalculado || match.local) : '---'}</div>
+                    <div class="bg-gradient-to-r from-red-600 to-rose-600 text-white px-4 py-1.5 rounded-xl font-mono text-lg font-black mx-4 shadow-lg tracking-wider">${d.golesL} - ${d.golesV}</div>
+                    <div class="text-left w-1/3 font-black text-sm tracking-tight text-slate-300">${match ? (match.visitCalculado || match.visit) : '---'}</div>
                 </div>`;
             }).join('');
         }
@@ -212,21 +216,19 @@
         window.cambiarFase = (fase, elemento) => {
             faseActiva = fase;
             document.querySelectorAll('.fase-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'text-white', 'scale-105', 'shadow-lg', 'shadow-blue-500/20');
+                btn.classList.remove('bg-blue-600', 'text-white', 'scale-105', 'shadow-lg');
                 btn.classList.add('bg-slate-800', 'text-slate-400');
             });
             elemento.classList.remove('bg-slate-800', 'text-slate-400');
-            elemento.classList.add('bg-blue-600', 'text-white', 'scale-105', 'shadow-lg', 'shadow-blue-500/20');
+            elemento.classList.add('bg-blue-600', 'text-white', 'scale-105', 'shadow-lg');
             
             const listContainer = document.getElementById('matches-list');
             listContainer.style.opacity = '0';
-            listContainer.style.transform = 'translateY(10px)';
             setTimeout(() => {
                 renderMatches();
                 loadUserPredictions();
                 listContainer.style.opacity = '1';
-                listContainer.style.transform = 'translateY(0)';
-            }, 150);
+            }, 100);
         };
 
         window.showTab = (tab, btnId) => {
@@ -239,26 +241,24 @@
     <style>
         .scrollbar-none::-webkit-scrollbar { display: none; }
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-        #matches-list, .main-content { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .card-animate { animation: slideIn 0.4s ease forwards; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        .live-pulse { animation: borderPulse 2s infinite; }
-        @keyframes borderPulse { 0%, 100% { border-color: rgba(239, 68, 68, 0.2); } 50% { border-color: rgba(239, 68, 68, 0.6); } }
+        #matches-list, .main-content { transition: all 0.2s ease-out; }
+        .card-animate { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased">
 
-    <div id="auth-section" class="min-h-screen flex items-center justify-center p-4 bg-radial from-slate-800 to-slate-950">
+    <!-- LOGIN -->
+    <div id="auth-section" class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-slate-800/80 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center border border-slate-700/60 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
             <div class="text-blue-500 mb-3 mt-2"><i class="fas fa-trophy fa-3x filter drop-shadow-[0_4px_10px_rgba(59,130,246,0.4)]"></i></div>
-            <h1 class="text-xl font-black text-white tracking-tight uppercase">Quiniela 2026<br><span class="text-xs text-blue-400 font-bold tracking-widest">(11 Jun - 19 Jul)</span></h1>
-            <p class="text-slate-400 text-xs mt-2 mb-6 font-medium">Sigue las llaves, suma puntos y domina el tablero.</p>
+            <h1 class="text-lg font-black text-white tracking-tight uppercase">Quiniela 2026<br><span class="text-xs text-blue-400 font-bold tracking-widest">(11 Jun - 19 Jul)</span></h1>
             
-            <div class="space-y-3 text-left">
+            <div class="space-y-3 text-left mt-6">
                 <input type="email" id="email-input" placeholder="Correo electrónico" class="w-full p-3.5 text-sm bg-slate-900 border-2 border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 text-white font-medium transition">
                 <input type="password" id="password-input" placeholder="Contraseña" class="w-full p-3.5 text-sm bg-slate-900 border-2 border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 text-white font-medium transition">
-                <button onclick="loginCorreo()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-3.5 rounded-xl font-black text-xs uppercase tracking-wider hover:from-blue-500 hover:to-indigo-500 transition shadow-lg shadow-blue-900/40 active:scale-98">Entrar / Registrarse</button>
+                <button onclick="loginCorreo()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-3.5 rounded-xl font-black text-xs uppercase tracking-wider hover:from-blue-500 hover:to-indigo-500 transition shadow-lg active:scale-98">Entrar / Registrarse</button>
             </div>
 
             <div class="relative flex py-4 items-center">
@@ -268,15 +268,16 @@
             </div>
 
             <button onclick="loginGoogle()" class="w-full flex items-center justify-center gap-3 bg-slate-900 border border-slate-700 p-3.5 rounded-xl font-bold text-xs text-slate-300 uppercase tracking-wider hover:bg-slate-700/40 transition active:scale-98">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/0/google.svg" width="16"> Cuenta de Google
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/0/google.svg" width="16"> Con Google
             </button>
         </div>
     </div>
 
+    <!-- MAIN APP -->
     <div id="app-section" class="hidden min-h-screen flex flex-col">
         <nav class="bg-slate-950/80 backdrop-blur-md text-white sticky top-0 z-50 border-b border-slate-800 shadow-xl">
             <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-3">
-                <span class="font-black text-sm md:text-base tracking-wider bg-gradient-to-r from-blue-400 to-indigo-400 text-transparent bg-clip-text uppercase"><i class="fas fa-star mr-2"></i>Quiniela 2026</span>
+                <span class="font-black text-sm tracking-wider bg-gradient-to-r from-blue-400 to-indigo-400 text-transparent bg-clip-text uppercase">🏆 Quiniela 2026</span>
                 <div class="flex rounded-xl bg-slate-900 p-1 border border-slate-800">
                     <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg bg-blue-600 text-white transition-all duration-200">Jugar</button>
                     <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all duration-200 ml-1">En Vivo</button>
@@ -286,8 +287,9 @@
 
         <main class="max-w-4xl mx-auto p-4 flex-1 w-full">
             <section id="sec-pronosticos" class="main-content space-y-5">
+                <!-- Selectores de Fase -->
                 <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-none items-center">
-                    <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-blue-600 text-white shadow-lg shadow-blue-500/20 scale-105 transition-all duration-300">Fase de Grupos</button>
+                    <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-blue-600 text-white shadow-lg scale-105 transition-all duration-300">Fase de Grupos</button>
                     <button onclick="cambiarFase('32avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-slate-800 text-slate-400 transition-all duration-300">32avos</button>
                     <button onclick="cambiarFase('16avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-slate-800 text-slate-400 transition-all duration-300">16avos</button>
                     <button onclick="cambiarFase('cuartos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-slate-800 text-slate-400 transition-all duration-300">Cuartos</button>
