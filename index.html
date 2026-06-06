@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiniela Pro Mundial 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, getRedirectResult, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // ==========================================
+        // REEMPLAZA ESTO CON TUS CREDENCIALES DE FIREBASE
+        // ==========================================
+      const firebaseConfig = {
+  apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
+  authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
+  projectId: "quiniela-mundial2026-919e3",
+  storageBucket: "quiniela-mundial2026-919e3.firebasestorage.app",
+  messagingSenderId: "296795666639",
+  appId: "1:296795666639:web:0cb94bc7d711b536a51fba",
+  measurementId: "G-DZ4BNVZNHB"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+
+        let currentUser = null;
+        let faseActiva = 'grupos';
+
+        // Calendario Maestro del Mundial
+        const partidosMundial = [
+            { id: 'g1', local: 'México', localFlag: '🇲🇽', visit: 'Francia', visitFlag: '🇫🇷', sede: 'Estadio Azteca', hora: '2026-06-11T15:00:00', fase: 'grupos', grupo: 'A' },
+            { id: 'g2', local: 'Sudáfrica', localFlag: '🇿🇦', visit: 'Uruguay', visitFlag: '🇺🇾', sede: 'Estadio Chivas', hora: '2026-06-12T16:00:00', fase: 'grupos', grupo: 'A' },
+            { id: 'g3', local: 'Argentina', localFlag: '🇦🇷', visit: 'Corea del Sur', visitFlag: '🇰🇷', sede: 'MetLife Stadium', hora: '2026-06-13T12:00:00', fase: 'grupos', grupo: 'B' },
+            { id: 'g4', local: 'Grecia', localFlag: '🇬🇷', visit: 'Nigeria', visitFlag: '🇳🇬', sede: 'SoFi Stadium', hora: '2026-06-13T15:00:00', fase: 'grupos', grupo: 'B' },
+            { id: '16a_1', local: '1A', localFlag: '🏳️', visit: '2B', visitFlag: '🏳️', sede: 'SoFi Stadium', hora: '2026-06-24T16:00:00', fase: '16avos', llave: 'L1' },
+            { id: '16a_2', local: '1B', localFlag: '🏳️', visit: '2A', visitFlag: '🏳️', sede: 'Hard Rock Stadium', hora: '2026-06-25T20:00:00', fase: '16avos', llave: 'L2' },
+            { id: '8vos_1', local: 'Ganador L1', localFlag: '🏳️', visit: 'Ganador L2', visitFlag: '🏳️', sede: 'AT&T Stadium', hora: '2026-06-28T17:00:00', fase: '8vos', llave: 'O1' }
+        ];
+
+        let mapeoEquiposProcesados = {};
+
+        // --- LOGIN CON REDIRECCIÓN (FIJA EL PROBLEMA DE GOOGLE SITES) ---
+        window.loginGoogle = () => {
+            signInWithRedirect(auth, provider).catch(err => alert("Error al redireccionar: " + err.message));
+        };
+
+        // --- LOGIN TRADICIONAL CON CORREO Y CONTRASEÑA ---
+        window.loginCorreo = () => {
+            const email = document.getElementById('email-input').value;
+            const pass = document.getElementById('pass-input').value;
+            if(!email || !pass) return alert("Completa los campos.");
+
+            signInWithEmailAndPassword(auth, email, pass)
+                .then((res) => checkUser(res.user))
+                .catch((err) => {
+                    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+                        // Si el usuario no existe, lo registra automáticamente
+                        const apodo = prompt("No encontramos tu cuenta, vamos a registrarte. Introduce tu apodo:");
+                        if(!apodo) return;
+                        createUserWithEmailAndPassword(auth, email, pass)
+                            .then(async (resReg) => {
+                                await setDoc(doc(db, "usuarios", resReg.user.uid), {
+                                    uid: resReg.user.uid,
+                                    nickname: apodo,
+                                    puntos: 0,
+                                    email: email
+                                });
+                                location.reload();
+                            }).catch(e => alert("Error al registrar: " + e.message));
+                    } else {
+                        alert("Error: " + err.message);
+                    }
+                });
+        };
+
+        // Captura el resultado de la redirección al volver a la página
+        getRedirectResult(auth).then(async (result) => {
+            if (result && result.user) {
+                await checkUser(result.user);
+            }
+        }).catch(err => console.log("Redirección manejada o vacía."));
+
+        async function checkUser(user) {
+            const userRef = doc(db, "usuarios", user.uid);
+            const userDoc = await getDoc(userRef);
+            if (!userDoc.exists()) {
+                const nickname = prompt("Introduce tu apodo de usuario para la Quiniela:");
+                await setDoc(userRef, {
+                    uid: user.uid,
+                    nickname: nickname || user.email.split('@')[0],
+                    puntos: 0,
+                    email: user.email
+                });
+            }
+            renderAppLayout();
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                renderAppLayout();
+            } else {
+                document.getElementById('auth-section').classList.remove('hidden');
+                document.getElementById('app-section').classList.add('hidden');
+            }
+        });
+
+        function renderAppLayout() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('app-section').classList.remove('hidden');
+            escucharResultadosOficiales();
+            loadLeaderboard();
+        }
+
+        // --- SISTEMA AUTOMÁTICO DE LLAVES ---
+        function escucharResultadosOficiales() {
+            onSnapshot(collection(db, "partidos_en_vivo"), (snap) => {
+                let tablaGrupos = { A: {}, B: {} };
+                let resultadosPartidos = {};
+
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    resultadosPartidos[doc.id] = data;
+
+                    const partidoRef = partidosMundial.find(m => m.id === doc.id);
+                    if (partidoRef && partidoRef.fase === 'grupos') {
+                        const g = partidoRef.grupo;
+                        if (!tablaGrupos[g][partidoRef.local]) tablaGrupos[g][partidoRef.local] = { nombre: partidoRef.local, flag: partidoRef.localFlag, pts: 0, dg: 0 };
+                        if (!tablaGrupos[g][partidoRef.visit]) tablaGrupos[g][partidoRef.visit] = { nombre: partidoRef.visit, flag: partidoRef.visitFlag, pts: 0, dg: 0 };
+
+                        const gl = parseInt(data.golesL) || 0;
+                        const gv = parseInt(data.golesV) || 0;
+                        tablaGrupos[g][partidoRef.local].dg += (gl - gv);
+                        tablaGrupos[g][partidoRef.visit].dg += (gv - gl);
+
+                        if (gl > gv) tablaGrupos[g][partidoRef.local].pts += 3;
+                        else if (gl < gv) tablaGrupos[g][partidoRef.visit].pts += 3;
+                        else {
+                            tablaGrupos[g][partidoRef.local].pts += 1;
+                            tablaGrupos[g][partidoRef.visit].pts += 1;
+                        }
+                    }
+                });
+
+                let posicionesFinales = {};
+                Object.keys(tablaGrupos).forEach(g => {
+                    let equiposOrdenados = Object.values(tablaGrupos[g]).sort((a, b) => b.pts - a.pts || b.dg - a.dg);
+                    if (equiposOrdenados[0]) posicionesFinales[`1${g}`] = equiposOrdenados[0];
+                    if (equiposOrdenados[1]) posicionesFinales[`2${g}`] = equiposOrdenados[1];
+                });
+
+                mapeoEquiposProcesados = {};
+                partidosMundial.forEach(m => {
+                    if (posicionesFinales[m.local]) { m.localCalculado = posicionesFinales[m.local].nombre; m.localFlagCalculado = posicionesFinales[m.local].flag; }
+                    else { m.localCalculado = m.local; m.localFlagCalculado = m.localFlag; }
+
+                    if (posicionesFinales[m.visit]) { m.visitCalculado = posicionesFinales[m.visit].nombre; m.visitFlagCalculado = posicionesFinales[m.visit].flag; }
+                    else { m.visitCalculado = m.visit; m.visitFlagCalculado = m.visitFlag; }
+
+                    if (resultadosPartidos[m.id] && m.llave) {
+                        const res = resultadosPartidos[m.id];
+                        const ganador = parseInt(res.golesL) > parseInt(res.golesV) ? m.localCalculado : m.visitCalculado;
+                        const ganadorFlag = parseInt(res.golesL) > parseInt(res.golesV) ? m.localFlagCalculado : m.visitFlagCalculado;
+                        mapeoEquiposProcesados[`Ganador ${m.llave}`] = { nombre: ganador, flag: ganadorFlag };
+                    }
+                });
+
+                partidosMundial.forEach(m => {
+                    if (mapeoEquiposProcesados[m.local]) { m.localCalculado = mapeoEquiposProcesados[m.local].nombre; m.localFlagCalculado = mapeoEquiposProcesados[m.local].flag; }
+                    if (mapeoEquiposProcesados[m.visit]) { m.visitCalculado = mapeoEquiposProcesados[m.visit].nombre; m.visitFlagCalculado = mapeoEquiposProcesados[m.visit].flag; }
+                });
+
+                renderMatches();
+                loadPredictions();
+                renderLiveTab(resultadosPartidos);
+            });
+        }
+
+        window.renderMatches = () => {
+            const container = document.getElementById('matches-list');
+            const now = new Date();
+            const partidosFase = partidosMundial.filter(m => m.fase === faseActiva);
+
+            if(partidosFase.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-400 py-8">Fase no disponible.</p>`;
+                return;
+            }
+
+            container.innerHTML = partidosFase.map(m => {
+                const isBlocked = now > new Date(new Date(m.hora).getTime() - 15 * 60000); // 15 min antes
+                const nombreLocal = m.localCalculado || m.local;
+                const flagLocal = m.localFlagCalculado || m.localFlag;
+                const nombreVisit = m.visitCalculado || m.visit;
+                const flagVisit = m.visitFlagCalculado || m.visitFlag;
+
+                return `
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="text-center md:text-left">
+                        <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">${m.fase}</p>
+                        <p class="text-xs text-gray-500">${new Date(m.hora).toLocaleString()} | ${m.sede}</p>
+                    </div>
+                    <div class="flex items-center gap-3 justify-center">
+                        <div class="text-right w-32 font-semibold text-sm truncate">${nombreLocal} <span class="ml-1">${flagLocal}</span></div>
+                        <input type="number" id="l-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 border-2 rounded-lg p-1 text-center font-bold text-lg disabled:bg-gray-100" placeholder="-">
+                        <span class="font-bold text-gray-400">-</span>
+                        <input type="number" id="v-${m.id}" ${isBlocked ? 'disabled' : ''} class="w-12 border-2 rounded-lg p-1 text-center font-bold text-lg disabled:bg-gray-100" placeholder="-">
+                        <div class="text-left w-32 font-semibold text-sm truncate"><span class="mr-1">${flagVisit}</span> ${nombreVisit}</div>
+                    </div>
+                    <button onclick="savePrediction('${m.id}')" ${isBlocked ? 'disabled' : ''} class="w-full md:w-auto bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 transition">
+                        ${isBlocked ? '🚫 Cerrado' : 'Guardar'}
+                    </button>
+                </div>`;
+            }).join('');
+        };
+
+        window.savePrediction = async (matchId) => {
+            const l = document.getElementById(`l-${matchId}`).value;
+            const v = document.getElementById(`v-${matchId}`).value;
+            if(l === "" || v === "") return alert("Por favor, introduce el marcador completo.");
+            await setDoc(doc(db, "predicciones", `${currentUser.uid}_${matchId}`), { uid: currentUser.uid, matchId: matchId, golesL: parseInt(l), golesV: parseInt(v), timestamp: new Date() });
+            alert("¡Predicción guardada!");
+        };
+
+        async function loadPredictions() {
+            const preds = await getDocs(collection(db, "predicciones"));
+            preds.forEach(doc => {
+                const data = doc.data();
+                if(data.uid === currentUser.uid) {
+                    if(document.getElementById(`l-${data.matchId}`)) document.getElementById(`l-${data.matchId}`).value = data.golesL;
+                    if(document.getElementById(`v-${data.matchId}`)) document.getElementById(`v-${data.matchId}`).value = data.golesV;
+                }
+            });
+        }
+
+        function renderLiveTab(resultadosPartidos) {
+            const container = document.getElementById('live-container');
+            if (Object.keys(resultadosPartidos).length === 0) {
+                container.innerHTML = "<p class='text-gray-400 text-center py-8 text-sm'>Esperando el silbatazo inicial del Mundial...</p>";
+                return;
+            }
+            container.innerHTML = Object.keys(resultadosPartidos).map(id => {
+                const d = resultadosPartidos[id];
+                const matchOriginal = partidosMundial.find(m => m.id === id);
+                return `
+                <div class="bg-slate-900 text-white p-4 rounded-xl flex justify-between items-center shadow-md">
+                    <div class="text-right w-1/3 font-medium text-sm truncate">${matchOriginal ? matchOriginal.localCalculado : '---'}</div>
+                    <div class="bg-red-600 px-4 py-1.5 rounded-lg font-mono text-xl font-bold mx-2">${d.golesL} - ${d.golesV}</div>
+                    <div class="text-left w-1/3 font-medium text-sm truncate">${matchOriginal ? matchOriginal.visitCalculado : '---'}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function loadLeaderboard() {
+            onSnapshot(query(collection(db, "usuarios"), orderBy("puntos", "desc")), (snap) => {
+                const list = document.getElementById('leaderboard-list');
+                list.innerHTML = snap.docs.map((doc, index) => `
+                    <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-sm">
+                        <td class="p-4 text-center font-bold text-gray-500">${index + 1}</td>
+                        <td class="p-4 font-semibold text-gray-800">${doc.data().nickname}</td>
+                        <td class="p-4 text-center text-blue-600 font-bold">${doc.data().puntos} pts</td>
+                    </tr>
+                `).join('');
+            });
+        }
+
+        window.cambiarFase = (fase, elemento) => {
+            faseActiva = fase;
+            document.querySelectorAll('.fase-btn').forEach(btn => { btn.classList.remove('bg-blue-600', 'text-white', 'shadow-md'); btn.classList.add('bg-white', 'text-gray-600'); });
+            elemento.classList.add('bg-blue-600', 'text-white', 'shadow-md');
+            renderMatches();
+            loadPredictions();
+        };
+
+        window.showTab = (tab, btnId) => {
+            document.querySelectorAll('.main-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById(tab).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-blue-800'));
+            document.getElementById(btnId).classList.add('bg-blue-800');
+        };
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+
+    <!-- LOGIN MEJORADO CON CORREO -->
+    <div id="auth-section" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm text-center border border-slate-100">
+            <div class="text-blue-600 mb-2"><i class="fas fa-trophy fa-2x"></i></div>
+            <h1 class="text-xl font-black text-slate-900 mb-1">Quiniela Mundial 2026</h1>
+            <p class="text-gray-400 text-xs mb-4">Accede de la forma que prefieras para guardar tus pronósticos.</p>
+            
+            <!-- Opción Correo / Password -->
+            <div class="space-y-2 mb-4 text-left">
+                <input type="email" id="email-input" placeholder="Correo electrónico" class="w-full p-2.5 text-sm border-2 rounded-xl focus:outline-none focus:border-blue-500">
+                <input type="password" id="password-input" placeholder="Contraseña" class="w-full p-2.5 text-sm border-2 rounded-xl focus:outline-none focus:border-blue-500">
+                <button onclick="loginCorreo()" class="w-full bg-blue-600 text-white p-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition">Entrar o Registrarse</button>
+            </div>
+
+            <div class="relative flex py-2 items-center">
+                <div class="flex-grow border-t border-gray-200"></div>
+                <span class="flex-shrink mx-3 text-gray-400 text-xs">O también</span>
+                <div class="flex-grow border-t border-gray-200"></div>
+            </div>
+
+            <!-- Botón Google por Redirección -->
+            <button onclick="loginGoogle()" class="mt-2 w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 p-2.5 rounded-xl font-bold hover:bg-gray-50 transition text-sm text-gray-700">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/0/google.svg" width="18"> Continuar con Google
+            </button>
+        </div>
+    </div>
+
+    <!-- APLICACIÓN PRINCIPAL -->
+    <div id="app-section" class="hidden min-h-screen">
+        <nav class="bg-blue-700 text-white sticky top-0 z-50 shadow-md">
+            <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-3">
+                <span class="font-black text-lg">🏆 COPA 2026</span>
+                <div class="flex rounded-lg overflow-hidden bg-blue-600 p-0.5">
+                    <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-4 py-2 text-sm font-medium rounded-md bg-blue-800 transition"><i class="fas fa-edit mr-1"></i> Jugar</button>
+                    <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-4 py-2 text-sm font-medium rounded-md transition"><i class="fas fa-broadcast-tower mr-1"></i> Vivo</button>
+                    <button id="nav-r" onclick="showTab('sec-ranking', 'nav-r')" class="nav-btn px-4 py-2 text-sm font-medium rounded-md transition"><i class="fas fa-list-ol mr-1"></i> Ranking</button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-4xl mx-auto p-4 pb-24">
+            <section id="sec-pronosticos" class="main-content space-y-4">
+                <div class="flex gap-2 overflow-x-auto pb-2">
+                    <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2 rounded-full border text-sm font-semibold bg-blue-600 text-white shadow-md">Grupos</button>
+                    <button onclick="cambiarFase('16avos', this)" class="fase-btn flex-none px-4 py-2 rounded-full border text-sm font-semibold bg-white text-gray-600">16avos</button>
+                    <button onclick="cambiarFase('8vos', this)" class="fase-btn flex-none px-4 py-2 rounded-full border text-sm font-semibold bg-white text-gray-600">8vos</button>
+                </div>
+                <div id="matches-list" class="space-y-3 mt-2"></div>
+            </section>
+
+            <section id="sec-vivo" class="main-content hidden space-y-4">
+                <h2 class="text-xl font-bold text-slate-900">📡 Marcadores en Tiempo Real</h2>
+                <div id="live-container" class="space-y-3"></div>
+            </section>
+
+            <section id="sec-ranking" class="main-content hidden space-y-4">
+                <h2 class="text-xl font-bold text-slate-900">📊 Posiciones Generales</h2>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <table class="w-full border-collapse">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="p-3 text-xs font-bold text-gray-500 uppercase text-center w-16">POS</th>
+                                <th class="p-3 text-xs font-bold text-gray-500 uppercase text-left">USUARIO</th>
+                                <th class="p-3 text-xs font-bold text-gray-500 uppercase text-center w-24">PUNTOS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-list"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
