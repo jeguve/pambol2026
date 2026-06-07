@@ -27,7 +27,6 @@ const firebaseConfig = {
   appId: "1:296795666639:web:0cb94bc7d711b536a51fba",
   measurementId: "G-DZ4BNVZNHB"
 };
-
         const app = initializeApp(firebaseConfig);
         const calendarioPartidos = window['partidos' + String.fromCharCode(77) + 'undial'] || [];
         const auth = getAuth(app);
@@ -313,12 +312,7 @@ const firebaseConfig = {
                 .filter(m => m.fase === faseActiva)
                 .slice()
                 .sort((a, b) => {
-                    // En grupos: primero Grupo, después fecha/hora.
-                    // En eliminatorias: fecha/hora.
-                    if (faseActiva === 'grupos') {
-                        const grupoCompare = ordenGrupo(a.grupo).localeCompare(ordenGrupo(b.grupo), 'es', { numeric: true, sensitivity: 'base' });
-                        if (grupoCompare !== 0) return grupoCompare;
-                    }
+                    // Orden cronológico: fecha y hora, sin agrupar por grupo.
                     const fechaCompare = fechaMs(a.hora) - fechaMs(b.hora);
                     if (fechaCompare !== 0) return fechaCompare;
                     return String(a.id || '').localeCompare(String(b.id || ''), 'es', { numeric: true, sensitivity: 'base' });
@@ -637,12 +631,14 @@ const firebaseConfig = {
         @keyframes ballBounce { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(18deg); } }
         .auth-card { background:rgba(255,255,255,.88); }
         .auth-card::before { content:""; position:absolute; inset:0; background:linear-gradient(145deg, rgba(255,255,255,.92), rgba(245,252,255,.82)); pointer-events:none; }
-        #app-section > nav, #app-section > main { position:relative; z-index:1; }
-        #phase-menu { scroll-margin-top: 72px; }
-        @media (max-width: 760px) { #flag-wall { gap: 8px; padding: 12px; } #flag-wall img { width: 46px; height: 31px; } #phase-menu { top: 52px; } }
+        #app-section > .app-top-fixed, #app-section > main, #app-section > footer { position:relative; z-index:1; }
+        #phase-menu { scroll-margin-top: 0; }
+        @media (max-width: 760px) { #flag-wall { gap: 8px; padding: 12px; } #flag-wall img { width: 46px; height: 31px; } }
     
-        .top-menu-sticky { position: sticky; top: 50px; z-index: 45; }
-        @media (max-width: 640px) { .top-menu-sticky { top: 49px; } }
+        .app-top-fixed { position: sticky; top: 0; z-index: 60; }
+        .app-hero-card { margin: 0.75rem auto 0; }
+        .phase-bar { margin-top: 0.75rem; }
+        @media (max-width: 640px) { .app-hero-card { margin-top: 0.5rem; } }
 </style>
 </head>
 <body class="text-slate-800 min-h-screen font-sans antialiased">
@@ -688,32 +684,31 @@ const firebaseConfig = {
 
     <!-- MAIN APP -->
     <div id="app-section" class="hidden min-h-screen flex flex-col relative">
-        <nav class="bg-white/82 backdrop-blur-md text-slate-800 sticky top-0 z-50 border-b border-white/70 shadow-sm">
-            <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-2.5">
-                <span id="welcome-label" class="font-black text-sm tracking-wider bg-gradient-to-r from-sky-600 to-cyan-600 text-transparent bg-clip-text uppercase"><span class="ball-title" aria-hidden="true">⚽</span> Bienvenido</span>
-                <div class="flex rounded-xl bg-white/70 p-1 border border-slate-200 text-[11px]">
-                    <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg bg-sky-500 text-white transition-all duration-200">Jugar</button>
-                    <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">En Vivo</button>
-                    <button id="nav-r" onclick="showTab('sec-ranking', 'nav-r')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">Ranking</button>
-                </div>
-            </div>
-        </nav>
-
-        <main class="max-w-4xl mx-auto p-4 flex-1 w-full">
-            <div class="rounded-3xl bg-white/78 border border-white/70 shadow-sm backdrop-blur-sm p-4 mb-4 overflow-hidden relative">
-                <div class="absolute inset-0 opacity-20 bg-gradient-to-r from-sky-200 via-white to-emerald-200 pointer-events-none"></div>
-                <div class="relative">
-                    <div class="flex-1">
-                        <p class="text-[10px] font-black uppercase tracking-[0.25em] text-sky-600">Evento deportivo · 11 de junio</p>
-                        <h1 class="text-xl md:text-2xl font-black text-slate-800 leading-tight"><span class="ball-title" aria-hidden="true">⚽</span>Torneo Internacional de patear la pelota</h1>
-                        <p class="text-xs text-slate-500 mt-1">Guarda tus marcadores, revisa resultados en vivo y sigue el ranking de la comunidad.</p>
+        <div class="app-top-fixed bg-white/80 backdrop-blur-md border-b border-white/70 shadow-sm">
+            <nav class="text-slate-800">
+                <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-2.5">
+                    <span id="welcome-label" class="font-black text-sm tracking-wider bg-gradient-to-r from-sky-600 to-cyan-600 text-transparent bg-clip-text uppercase"><span class="ball-title" aria-hidden="true">⚽</span> Bienvenido</span>
+                    <div class="flex rounded-xl bg-white/70 p-1 border border-slate-200 text-[11px]">
+                        <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg bg-sky-500 text-white transition-all duration-200">Jugar</button>
+                        <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">En Vivo</button>
+                        <button id="nav-r" onclick="showTab('sec-ranking', 'nav-r')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">Ranking</button>
                     </div>
                 </div>
-            </div>
+            </nav>
 
-            <!-- PESTAÑA JUGAR -->
-            <section id="sec-pronosticos" class="main-content space-y-5">
-                <div id="phase-menu" class="top-menu-sticky -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-sky-50/94 backdrop-blur-md border-y border-sky-100 shadow-md">
+            <div class="max-w-4xl mx-auto px-4">
+                <div class="app-hero-card rounded-3xl bg-white/82 border border-white/80 shadow-sm backdrop-blur-sm p-4 overflow-hidden relative">
+                    <div class="absolute inset-0 opacity-20 bg-gradient-to-r from-sky-200 via-white to-emerald-200 pointer-events-none"></div>
+                    <div class="relative">
+                        <div class="flex-1">
+                            <p class="text-[10px] font-black uppercase tracking-[0.25em] text-sky-600">Evento deportivo · 11 de junio</p>
+                            <h1 class="text-xl md:text-2xl font-black text-slate-800 leading-tight"><span class="ball-title" aria-hidden="true">⚽</span>Torneo Internacional de patear la pelota</h1>
+                            <p class="text-xs text-slate-500 mt-1">Guarda tus marcadores, revisa resultados en vivo y sigue el ranking de la comunidad.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="phase-menu" class="phase-bar -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-sky-50/94 backdrop-blur-md border-y border-sky-100 shadow-md">
                     <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-sky-500 text-white shadow-lg scale-105 transition-all duration-300">Fase de Grupos</button>
                     <button onclick="cambiarFase('32avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">32avos</button>
                     <button onclick="cambiarFase('16avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">16avos</button>
@@ -721,6 +716,12 @@ const firebaseConfig = {
                     <button onclick="cambiarFase('semis', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">Semis</button>
                     <button onclick="cambiarFase('final', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">Final</button>
                 </div>
+            </div>
+        </div>
+
+        <main class="max-w-4xl mx-auto p-4 flex-1 w-full">
+            <!-- PESTAÑA JUGAR -->
+            <section id="sec-pronosticos" class="main-content space-y-5">
                 <div id="matches-list" class="space-y-3"></div>
             </section>
 
