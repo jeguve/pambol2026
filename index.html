@@ -18,7 +18,7 @@
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-const firebaseConfig = {
+      const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -27,6 +27,7 @@ const firebaseConfig = {
   appId: "1:296795666639:web:0cb94bc7d711b536a51fba",
   measurementId: "G-DZ4BNVZNHB"
 };
+
         const app = initializeApp(firebaseConfig);
         const calendarioPartidos = window['partidos' + String.fromCharCode(77) + 'undial'] || [];
         const auth = getAuth(app);
@@ -43,23 +44,87 @@ const firebaseConfig = {
         let unsubscribeLive = null;
         let dashboardVisible = false;
 
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('app-toast');
+            if (!toast) return;
+            const isSuccess = type === 'success';
+            toast.className = `fixed top-4 left-4 z-[100] max-w-sm rounded-2xl px-4 py-3 text-sm font-bold shadow-lg border transition-all duration-300 ${isSuccess ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-rose-500 text-white border-rose-400'}`;
+            toast.innerHTML = `<span class="mr-2">${isSuccess ? '✅' : '⚠️'}</span>${message}`;
+            toast.classList.remove('hidden', 'opacity-0', '-translate-y-2');
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.classList.add('hidden'), 260);
+            }, 2800);
+        }
+
+        function showNicknameModal(user) {
+            const modal = document.getElementById('nickname-modal');
+            const input = document.getElementById('nickname-modal-input');
+            if (!modal || !input) return;
+            input.value = user.displayName || user.email?.split('@')[0] || '';
+            modal.classList.remove('hidden');
+            setTimeout(() => input.focus(), 80);
+        }
+
+        window.saveNicknameFromModal = async () => {
+            if (!currentUser) return showToast('Tu sesión no está activa. Vuelve a iniciar sesión.', 'error');
+            const input = document.getElementById('nickname-modal-input');
+            const nickname = input.value.trim();
+            if (!nickname) return showToast('Escribe tu apodo para continuar.', 'error');
+            try {
+                await setDoc(doc(db, "usuarios", currentUser.uid), {
+                    uid: currentUser.uid,
+                    nickname,
+                    puntos: 0,
+                    puntos_grupos: 0,
+                    puntos_32avos: 0,
+                    puntos_16avos: 0,
+                    puntos_cuartos: 0,
+                    puntos_semis: 0,
+                    puntos_final: 0,
+                    email: currentUser.email || '',
+                    photoURL: currentUser.photoURL || '',
+                    provider: currentUser.providerData?.[0]?.providerId || 'email',
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+                document.getElementById('nickname-modal')?.classList.add('hidden');
+                showToast('Apodo guardado correctamente.');
+                window.loadLeaderboard('general');
+            } catch (err) {
+                console.error('No se pudo guardar el apodo:', err);
+                showToast('No se pudo guardar el apodo. Revisa permisos de Firestore.', 'error');
+            }
+        };
+
         // --- SISTEMA DE AUTENTICACIÓN ---
         window.loginCorreo = () => {
             const email = document.getElementById('email-input').value.trim();
             const pass = document.getElementById('password-input').value;
-            if(!email || !pass) return alert("Por favor, llena todos los campos.");
+            const apodo = document.getElementById('nickname-input')?.value.trim() || '';
+            if(!email || !pass) return showToast("Por favor, llena correo y contraseña.", 'error');
 
             signInWithEmailAndPassword(auth, email, pass)
                 .then((res) => registrarOShow(res.user))
                 .catch((err) => {
                     if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-                        const apodo = prompt("¿Eres usuario nuevo? Elige tu apodo para el torneo:");
-                        if(!apodo) return;
+                        if(!apodo) {
+                            document.getElementById('nickname-input')?.classList.add('border-rose-300', 'bg-rose-50');
+                            return showToast("Si eres usuario nuevo, escribe tu apodo en el campo visible del login.", 'error');
+                        }
                         createUserWithEmailAndPassword(auth, email, pass).then(async (resReg) => {
-                            await setDoc(doc(db, "usuarios", resReg.user.uid), { uid: resReg.user.uid, nickname: apodo, puntos: 0, puntos_grupos: 0, puntos_32avos: 0, puntos_16avos: 0, puntos_cuartos: 0, puntos_semis: 0, puntos_final: 0, email: email });
-                            location.reload();
-                        }).catch(e => alert("Error al registrar: " + e.message));
-                    } else { alert("Error: " + err.message); }
+                            currentUser = resReg.user;
+                            await setDoc(doc(db, "usuarios", resReg.user.uid), { uid: resReg.user.uid, nickname: apodo, puntos: 0, puntos_grupos: 0, puntos_32avos: 0, puntos_16avos: 0, puntos_cuartos: 0, puntos_semis: 0, puntos_final: 0, email: email, provider: 'email', updatedAt: new Date().toISOString() }, { merge: true });
+                            showToast("Registro creado. Bienvenida al torneo.");
+                            showDashboard();
+                        }).catch(e => {
+                            console.error('Error al registrar:', e);
+                            showToast("No se pudo crear el registro. Revisa Firebase Authentication/Firestore.", 'error');
+                        });
+                    } else {
+                        console.error('Error al iniciar sesión:', err);
+                        showToast("No se pudo iniciar sesión. Revisa correo, contraseña o configuración de Firebase.", 'error');
+                    }
                 });
         };
 
@@ -79,7 +144,7 @@ const firebaseConfig = {
                 // Si la persona cerró la ventana, no mostramos error técnico.
                 if (err.code === 'auth/popup-closed-by-user') return;
 
-                alert('No se pudo iniciar sesión con Google. Revisa que Google esté habilitado en Firebase Authentication y que este dominio esté autorizado. Detalle: ' + err.message);
+                showToast('No se pudo iniciar sesión con Google. Revisa que Google esté habilitado en Firebase Authentication y que este dominio esté autorizado.', 'error');
             }
         };
 
@@ -89,7 +154,7 @@ const firebaseConfig = {
             })
             .catch((err) => {
                 console.error('Error al volver del redirect de Google:', err);
-                alert('Google inició el proceso, pero hubo un problema al regresar a la página. Revisa dominios autorizados en Firebase. Detalle: ' + err.message);
+                showToast('Google inició el proceso, pero hubo un problema al regresar a la página. Revisa dominios autorizados en Firebase.', 'error');
             });
 
         async function registrarOShow(user) {
@@ -102,26 +167,13 @@ const firebaseConfig = {
                 const docSnap = await getDoc(userRef);
 
                 if(!docSnap.exists()) {
-                    const nickname = prompt("¡Bienvenido! Escribe tu apodo oficial para el ranking:") || (user.displayName || user.email?.split('@')[0] || 'Competidor');
-                    await setDoc(userRef, {
-                        uid: user.uid,
-                        nickname,
-                        puntos: 0,
-                        puntos_grupos: 0,
-                        puntos_32avos: 0,
-                        puntos_16avos: 0,
-                        puntos_cuartos: 0,
-                        puntos_semis: 0,
-                        puntos_final: 0,
-                        email: user.email || '',
-                        photoURL: user.photoURL || '',
-                        provider: 'google',
-                        updatedAt: new Date().toISOString()
-                    }, { merge: true });
+                    showDashboard();
+                    showNicknameModal(user);
+                    return;
                 }
             } catch (err) {
                 console.error('Sesión iniciada, pero no se pudo leer/crear el usuario en Firestore:', err);
-                alert('Tu sesión de Google sí inició, pero hubo un problema leyendo/creando tu usuario en Firestore. La app abrirá de todos modos. Revisa reglas de Firestore para la colección usuarios. Detalle: ' + err.message);
+                showToast('Tu sesión inició, pero hubo un problema leyendo/creando tu usuario en Firestore. La app abrirá de todos modos.', 'error');
             } finally {
                 showDashboard();
             }
@@ -281,16 +333,16 @@ const firebaseConfig = {
         };
 
         window.savePrediction = async (matchId) => {
-            if (!currentUser) return alert("Tu sesión no está activa. Vuelve a iniciar sesión.");
+            if (!currentUser) return showToast("Tu sesión no está activa. Vuelve a iniciar sesión.", 'error');
             const l = document.getElementById(`l-${matchId}`).value;
             const v = document.getElementById(`v-${matchId}`).value;
-            if(l === "" || v === "") return alert("Por favor, rellena el marcador completo.");
+            if(l === "" || v === "") return showToast("Por favor, rellena el marcador completo.", 'error');
             try {
                 await setDoc(doc(db, "predicciones", `${currentUser.uid}_${matchId}`), { uid: currentUser.uid, matchId: matchId, golesL: parseInt(l), golesV: parseInt(v), updatedAt: new Date().toISOString() }, { merge: true });
-                alert("⚽ ¡Pronóstico registrado!");
+                showToast("Marcador guardado correctamente.");
             } catch (err) {
                 console.error('No se pudo guardar el pronóstico:', err);
-                alert('No se pudo guardar el marcador. Revisa reglas de Firestore para predicciones. Detalle: ' + err.message);
+                showToast('No se pudo guardar el marcador. Revisa reglas de Firestore para predicciones.', 'error');
             }
         };
 
@@ -433,6 +485,17 @@ const firebaseConfig = {
     </style>
 </head>
 <body class="text-slate-800 min-h-screen font-sans antialiased">
+    <div id="app-toast" class="hidden fixed top-4 left-4 z-[100] opacity-0 -translate-y-2"></div>
+
+    <div id="nickname-modal" class="hidden fixed inset-0 z-[90] bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl border border-white/80 w-full max-w-sm p-6 text-center">
+            <div class="text-3xl mb-2">🏷️</div>
+            <h2 class="text-lg font-black text-slate-800 uppercase">Guarda tu apodo</h2>
+            <p class="text-xs text-slate-500 mt-1 mb-4">Este nombre aparecerá en el ranking del torneo.</p>
+            <input id="nickname-modal-input" type="text" maxlength="24" placeholder="Tu apodo" class="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 text-slate-800 font-bold transition text-center">
+            <button onclick="saveNicknameFromModal()" class="w-full mt-3 bg-emerald-500 text-white p-3 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-emerald-400 transition shadow-md">Guardar apodo</button>
+        </div>
+    </div>
     <div id="flag-wall" aria-hidden="true"></div>
 
     <!-- LOGIN -->
