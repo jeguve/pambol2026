@@ -746,6 +746,11 @@ const firebaseConfig = {
             <div class="space-y-3 text-left">
                 <input type="email" id="email-input" placeholder="Correo electrónico" class="w-full p-3 text-sm bg-white/90 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 text-slate-800 font-medium transition">
                 <input type="password" id="password-input" placeholder="Contraseña" class="w-full p-3 text-sm bg-white/90 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 text-slate-800 font-medium transition">
+                <div>
+                    <label for="nickname-input" class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Apodo para el ranking</label>
+                    <input type="text" id="nickname-input" maxlength="24" placeholder="Ej. Jesy82" class="w-full p-3 text-sm bg-white/90 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 text-slate-800 font-bold transition">
+                    <p class="text-[10px] text-slate-400 mt-1.5 leading-snug">Solo es necesario si te estás registrando por primera vez con correo. Si entras con Google y no tienes apodo, te lo pedirá después.</p>
+                </div>
                 <button onclick="loginCorreo()" class="w-full bg-gradient-to-r from-sky-500 to-cyan-500 text-white p-3 rounded-xl font-black text-xs uppercase tracking-wider hover:from-sky-400 hover:to-cyan-400 transition shadow-md active:scale-98">Entrar / Registrarse</button>
             </div>
 
