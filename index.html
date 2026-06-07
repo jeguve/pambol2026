@@ -12,7 +12,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithRedirect, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, getRedirectResult, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithRedirect, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, getRedirectResult, createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // ==========================================
@@ -27,17 +27,21 @@ const firebaseConfig = {
   appId: "1:296795666639:web:0cb94bc7d711b536a51fba",
   measurementId: "G-DZ4BNVZNHB"
 };
-
         const app = initializeApp(firebaseConfig);
         const calendarioPartidos = window['partidos' + String.fromCharCode(77) + 'undial'] || [];
         const auth = getAuth(app);
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
+        setPersistence(auth, browserLocalPersistence).catch((err) => {
+            console.warn('No se pudo activar persistencia local de sesión:', err);
+        });
 
         let currentUser = null;
         let faseActiva = 'grupos';
         let unsubscribeLeaderboard = null;
+        let unsubscribeLive = null;
+        let dashboardVisible = false;
 
         // --- SISTEMA DE AUTENTICACIÓN ---
         window.loginCorreo = () => {
@@ -62,27 +66,77 @@ const firebaseConfig = {
         window.loginGoogle = async () => {
             try {
                 const res = await signInWithPopup(auth, provider);
-                if (res && res.user) await registrarOShow(res.user);
+                if (res?.user) await registrarOShow(res.user);
             } catch (err) {
-                if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
+                console.error('Error login Google:', err);
+
+                // Si el navegador bloquea popups, usamos redirect como respaldo.
+                if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
                     await signInWithRedirect(auth, provider);
-                } else {
-                    alert('No se pudo iniciar sesión con Google: ' + err.message);
+                    return;
                 }
+
+                // Si la persona cerró la ventana, no mostramos error técnico.
+                if (err.code === 'auth/popup-closed-by-user') return;
+
+                alert('No se pudo iniciar sesión con Google. Revisa que Google esté habilitado en Firebase Authentication y que este dominio esté autorizado. Detalle: ' + err.message);
             }
         };
-        getRedirectResult(auth).then(async (res) => { if(res && res.user) await registrarOShow(res.user); });
+
+        getRedirectResult(auth)
+            .then(async (res) => {
+                if (res?.user) await registrarOShow(res.user);
+            })
+            .catch((err) => {
+                console.error('Error al volver del redirect de Google:', err);
+                alert('Google inició el proceso, pero hubo un problema al regresar a la página. Revisa dominios autorizados en Firebase. Detalle: ' + err.message);
+            });
 
         async function registrarOShow(user) {
-            const docSnap = await getDoc(doc(db, "usuarios", user.uid));
-            if(!docSnap.exists()) {
-                const nickname = prompt("¡Bienvenido! Escribe tu apodo oficial para el ranking:");
-                await setDoc(doc(db, "usuarios", user.uid), { uid: user.uid, nickname: nickname || user.email.split('@')[0], puntos: 0, puntos_grupos: 0, puntos_32avos: 0, puntos_16avos: 0, puntos_cuartos: 0, puntos_semis: 0, puntos_final: 0, email: user.email });
+            currentUser = user;
+
+            // Importante: aunque Firestore falle por reglas/permisos, no regresamos al login.
+            // La autenticación ya fue exitosa; mostramos la app y dejamos el error en consola/alerta.
+            try {
+                const userRef = doc(db, "usuarios", user.uid);
+                const docSnap = await getDoc(userRef);
+
+                if(!docSnap.exists()) {
+                    const nickname = prompt("¡Bienvenido! Escribe tu apodo oficial para el ranking:") || (user.displayName || user.email?.split('@')[0] || 'Competidor');
+                    await setDoc(userRef, {
+                        uid: user.uid,
+                        nickname,
+                        puntos: 0,
+                        puntos_grupos: 0,
+                        puntos_32avos: 0,
+                        puntos_16avos: 0,
+                        puntos_cuartos: 0,
+                        puntos_semis: 0,
+                        puntos_final: 0,
+                        email: user.email || '',
+                        photoURL: user.photoURL || '',
+                        provider: 'google',
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                }
+            } catch (err) {
+                console.error('Sesión iniciada, pero no se pudo leer/crear el usuario en Firestore:', err);
+                alert('Tu sesión de Google sí inició, pero hubo un problema leyendo/creando tu usuario en Firestore. La app abrirá de todos modos. Revisa reglas de Firestore para la colección usuarios. Detalle: ' + err.message);
+            } finally {
+                showDashboard();
             }
-            showDashboard();
         }
 
-        onAuthStateChanged(auth, (user) => { if(user) { currentUser = user; showDashboard(); } });
+        onAuthStateChanged(auth, async (user) => {
+            if(user) {
+                await registrarOShow(user);
+            } else {
+                currentUser = null;
+                dashboardVisible = false;
+                document.getElementById('auth-section')?.classList.remove('hidden');
+                document.getElementById('app-section')?.classList.add('hidden');
+            }
+        });
 
         // --- FORMATO DE FECHA MÉXICO (DD/MM/AAAA) ---
         function formatearFechaMX(dateString) {
@@ -97,14 +151,19 @@ const firebaseConfig = {
         }
 
         function showDashboard() {
+            if (!currentUser) return;
             document.getElementById('auth-section').classList.add('hidden');
             document.getElementById('app-section').classList.remove('hidden');
-            escucharDataYFases();
-            window.loadLeaderboard('general');
+            if (!dashboardVisible) {
+                dashboardVisible = true;
+                escucharDataYFases();
+                window.loadLeaderboard('general');
+            }
         }
 
         function escucharDataYFases() {
-            onSnapshot(collection(db, "partidos_en_vivo"), (snap) => {
+            if (unsubscribeLive) unsubscribeLive();
+            unsubscribeLive = onSnapshot(collection(db, "partidos_en_vivo"), (snap) => {
                 let resultadosOficiales = {};
                 let partidosDeGruposJugados = 0;
 
@@ -131,6 +190,10 @@ const firebaseConfig = {
                 renderMatches();
                 loadUserPredictions();
                 renderLiveSection(resultadosOficiales);
+            }, (err) => {
+                console.error('No se pudo escuchar partidos_en_vivo:', err);
+                renderMatches();
+                document.getElementById('live-container').innerHTML = "<div class='text-center py-10 text-rose-600 bg-white/80 rounded-2xl border border-rose-100'><b>No se pudieron cargar resultados en vivo.</b><br><span class='text-xs'>Revisa reglas de Firestore para partidos_en_vivo.</span></div>";
             });
         }
 
@@ -218,22 +281,33 @@ const firebaseConfig = {
         };
 
         window.savePrediction = async (matchId) => {
+            if (!currentUser) return alert("Tu sesión no está activa. Vuelve a iniciar sesión.");
             const l = document.getElementById(`l-${matchId}`).value;
             const v = document.getElementById(`v-${matchId}`).value;
             if(l === "" || v === "") return alert("Por favor, rellena el marcador completo.");
-            await setDoc(doc(db, "predicciones", `${currentUser.uid}_${matchId}`), { uid: currentUser.uid, matchId: matchId, golesL: parseInt(l), golesV: parseInt(v) });
-            alert("⚽ ¡Pronóstico registrado!");
+            try {
+                await setDoc(doc(db, "predicciones", `${currentUser.uid}_${matchId}`), { uid: currentUser.uid, matchId: matchId, golesL: parseInt(l), golesV: parseInt(v), updatedAt: new Date().toISOString() }, { merge: true });
+                alert("⚽ ¡Pronóstico registrado!");
+            } catch (err) {
+                console.error('No se pudo guardar el pronóstico:', err);
+                alert('No se pudo guardar el marcador. Revisa reglas de Firestore para predicciones. Detalle: ' + err.message);
+            }
         };
 
         async function loadUserPredictions() {
-            const preds = await getDocs(collection(db, "predicciones"));
-            preds.forEach(doc => {
-                const data = doc.data();
-                if(data.uid === currentUser.uid) {
-                    if(document.getElementById(`l-${data.matchId}`)) document.getElementById(`l-${data.matchId}`).value = data.golesL;
-                    if(document.getElementById(`v-${data.matchId}`)) document.getElementById(`v-${data.matchId}`).value = data.golesV;
-                }
-            });
+            if (!currentUser) return;
+            try {
+                const preds = await getDocs(collection(db, "predicciones"));
+                preds.forEach(doc => {
+                    const data = doc.data();
+                    if(data.uid === currentUser.uid) {
+                        if(document.getElementById(`l-${data.matchId}`)) document.getElementById(`l-${data.matchId}`).value = data.golesL;
+                        if(document.getElementById(`v-${data.matchId}`)) document.getElementById(`v-${data.matchId}`).value = data.golesV;
+                    }
+                });
+            } catch (err) {
+                console.error('No se pudieron cargar predicciones:', err);
+            }
         }
 
         function renderLiveSection(resultados) {
@@ -277,6 +351,9 @@ const firebaseConfig = {
                         <td class="p-4 text-center ${index === 0 ? 'text-emerald-800' : 'text-sky-600'} font-black">${doc.data()[campoOrden] || 0} PTS</td>
                     </tr>
                 `).join('');
+            }, (err) => {
+                console.error('No se pudo cargar ranking:', err);
+                document.getElementById('leaderboard-list').innerHTML = `<tr><td colspan="3" class="p-4 text-center text-rose-600 text-sm font-bold">No se pudo cargar el ranking. Revisa reglas/índices de Firestore.</td></tr>`;
             });
         };
 
@@ -379,7 +456,7 @@ const firebaseConfig = {
             </div>
 
             <button onclick="loginGoogle()" class="w-full flex items-center justify-center gap-3 bg-white/90 border border-slate-200 p-3 rounded-xl font-bold text-xs text-slate-600 uppercase tracking-wider hover:bg-sky-50 transition active:scale-98">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/0/google.svg" width="14"> Con Google
+                <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true" class="flex-none"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-7.9l-6.5 5C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.4-2.3 4.3-4.1 5.6l6.2 5.2C36.9 39.3 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> Con Google
             </button>
             </div>
         </div>
