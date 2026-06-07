@@ -27,6 +27,7 @@ const firebaseConfig = {
   appId: "1:296795666639:web:0cb94bc7d711b536a51fba",
   measurementId: "G-DZ4BNVZNHB"
 };
+
         const app = initializeApp(firebaseConfig);
         const calendarioPartidos = window['partidos' + String.fromCharCode(77) + 'undial'] || [];
         const auth = getAuth(app);
@@ -293,14 +294,34 @@ const firebaseConfig = {
         window.renderMatches = () => {
             const container = document.getElementById('matches-list');
             const now = new Date();
+            const ordenGrupo = (valor) => {
+                // Soporta grupo como "A", "Grupo A", número, o vacío.
+                if (valor === undefined || valor === null || valor === '') return 'ZZZ';
+                return String(valor)
+                    .replace(/^grupo\s+/i, '')
+                    .trim()
+                    .toUpperCase()
+                    .padStart(3, '0');
+            };
+
+            const fechaMs = (valor) => {
+                const fecha = new Date(valor);
+                return Number.isNaN(fecha.getTime()) ? 0 : fecha.getTime();
+            };
+
             const filtrados = calendarioPartidos
                 .filter(m => m.fase === faseActiva)
+                .slice()
                 .sort((a, b) => {
-                    const grupoA = String(a.grupo || 'ZZ').padStart(2, '0');
-                    const grupoB = String(b.grupo || 'ZZ').padStart(2, '0');
-                    const grupoCompare = grupoA.localeCompare(grupoB, 'es', { numeric: true, sensitivity: 'base' });
-                    if (grupoCompare !== 0) return grupoCompare;
-                    return new Date(a.hora) - new Date(b.hora);
+                    // En grupos: primero Grupo, después fecha/hora.
+                    // En eliminatorias: fecha/hora.
+                    if (faseActiva === 'grupos') {
+                        const grupoCompare = ordenGrupo(a.grupo).localeCompare(ordenGrupo(b.grupo), 'es', { numeric: true, sensitivity: 'base' });
+                        if (grupoCompare !== 0) return grupoCompare;
+                    }
+                    const fechaCompare = fechaMs(a.hora) - fechaMs(b.hora);
+                    if (fechaCompare !== 0) return fechaCompare;
+                    return String(a.id || '').localeCompare(String(b.id || ''), 'es', { numeric: true, sensitivity: 'base' });
                 });
 
             const tagsFases = {
@@ -619,7 +640,10 @@ const firebaseConfig = {
         #app-section > nav, #app-section > main { position:relative; z-index:1; }
         #phase-menu { scroll-margin-top: 72px; }
         @media (max-width: 760px) { #flag-wall { gap: 8px; padding: 12px; } #flag-wall img { width: 46px; height: 31px; } #phase-menu { top: 52px; } }
-    </style>
+    
+        .top-menu-sticky { position: sticky; top: 50px; z-index: 45; }
+        @media (max-width: 640px) { .top-menu-sticky { top: 49px; } }
+</style>
 </head>
 <body class="text-slate-800 min-h-screen font-sans antialiased">
     <div id="app-toast" class="hidden fixed top-4 left-4 z-[100] opacity-0 -translate-y-2"></div>
@@ -663,7 +687,7 @@ const firebaseConfig = {
     </div>
 
     <!-- MAIN APP -->
-    <div id="app-section" class="hidden min-h-screen flex flex-col relative overflow-hidden">
+    <div id="app-section" class="hidden min-h-screen flex flex-col relative">
         <nav class="bg-white/82 backdrop-blur-md text-slate-800 sticky top-0 z-50 border-b border-white/70 shadow-sm">
             <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-2.5">
                 <span id="welcome-label" class="font-black text-sm tracking-wider bg-gradient-to-r from-sky-600 to-cyan-600 text-transparent bg-clip-text uppercase"><span class="ball-title" aria-hidden="true">⚽</span> Bienvenido</span>
@@ -689,7 +713,7 @@ const firebaseConfig = {
 
             <!-- PESTAÑA JUGAR -->
             <section id="sec-pronosticos" class="main-content space-y-5">
-                <div id="phase-menu" class="sticky top-[58px] z-40 -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-sky-50/88 backdrop-blur-md border-y border-white/70 shadow-sm">
+                <div id="phase-menu" class="top-menu-sticky -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-sky-50/94 backdrop-blur-md border-y border-sky-100 shadow-md">
                     <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-sky-500 text-white shadow-lg scale-105 transition-all duration-300">Fase de Grupos</button>
                     <button onclick="cambiarFase('32avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">32avos</button>
                     <button onclick="cambiarFase('16avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">16avos</button>
