@@ -27,7 +27,6 @@ const firebaseConfig = {
   appId: "1:296795666639:web:0cb94bc7d711b536a51fba",
   measurementId: "G-DZ4BNVZNHB"
 };
-
         const app = initializeApp(firebaseConfig);
         const calendarioPartidos = window['partidos' + String.fromCharCode(77) + 'undial'] || [];
         const auth = getAuth(app);
@@ -294,7 +293,15 @@ const firebaseConfig = {
         window.renderMatches = () => {
             const container = document.getElementById('matches-list');
             const now = new Date();
-            const filtrados = calendarioPartidos.filter(m => m.fase === faseActiva);
+            const filtrados = calendarioPartidos
+                .filter(m => m.fase === faseActiva)
+                .sort((a, b) => {
+                    const grupoA = String(a.grupo || 'ZZ').padStart(2, '0');
+                    const grupoB = String(b.grupo || 'ZZ').padStart(2, '0');
+                    const grupoCompare = grupoA.localeCompare(grupoB, 'es', { numeric: true, sensitivity: 'base' });
+                    if (grupoCompare !== 0) return grupoCompare;
+                    return new Date(a.hora) - new Date(b.hora);
+                });
 
             const tagsFases = {
                 'grupos': 'Fase de Grupos',
@@ -313,7 +320,7 @@ const firebaseConfig = {
                 const flagVisitFinal = m.visitFlagCalculado || m.visitFlag;
 
                 return `
-                <div class="bg-white/88 backdrop-blur-sm p-5 rounded-2xl border border-white/70 flex flex-col md:flex-row items-center justify-between gap-4 shadow-md hover:shadow-lg hover:border-sky-300/70 transition-all duration-300 card-animate">
+                <div class="bg-sky-50/92 backdrop-blur-sm p-5 rounded-2xl border border-sky-200/80 flex flex-col md:flex-row items-center justify-between gap-4 shadow-md hover:shadow-lg hover:bg-sky-100/92 hover:border-sky-300/90 transition-all duration-300 card-animate">
                     <div class="text-center md:text-left min-w-[140px]">
                         <span class="px-2.5 py-1 text-[10px] font-black bg-sky-100/80 text-sky-700 rounded-md uppercase tracking-widest border border-sky-200">${m.grupo ? 'Grupo ' + m.grupo : tagsFases[m.fase]}</span>
                         <p class="text-[11px] text-slate-500 mt-2 font-medium"><i class="far fa-clock mr-1 text-sky-500"></i> ${formatearFechaMX(m.hora)}</p>
@@ -610,7 +617,8 @@ const firebaseConfig = {
         .auth-card { background:rgba(255,255,255,.88); }
         .auth-card::before { content:""; position:absolute; inset:0; background:linear-gradient(145deg, rgba(255,255,255,.92), rgba(245,252,255,.82)); pointer-events:none; }
         #app-section > nav, #app-section > main { position:relative; z-index:1; }
-        @media (max-width: 760px) { #flag-wall { gap: 8px; padding: 12px; } #flag-wall img { width: 46px; height: 31px; } }
+        #phase-menu { scroll-margin-top: 72px; }
+        @media (max-width: 760px) { #flag-wall { gap: 8px; padding: 12px; } #flag-wall img { width: 46px; height: 31px; } #phase-menu { top: 52px; } }
     </style>
 </head>
 <body class="text-slate-800 min-h-screen font-sans antialiased">
@@ -681,7 +689,7 @@ const firebaseConfig = {
 
             <!-- PESTAÑA JUGAR -->
             <section id="sec-pronosticos" class="main-content space-y-5">
-                <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-none items-center">
+                <div id="phase-menu" class="sticky top-[58px] z-40 -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-sky-50/88 backdrop-blur-md border-y border-white/70 shadow-sm">
                     <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-sky-500 text-white shadow-lg scale-105 transition-all duration-300">Fase de Grupos</button>
                     <button onclick="cambiarFase('32avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">32avos</button>
                     <button onclick="cambiarFase('16avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">16avos</button>
@@ -733,6 +741,9 @@ const firebaseConfig = {
                 </div>
             </section>
         </main>
+        <footer class="relative z-10 w-full border-t border-white/70 bg-white/55 backdrop-blur-sm">
+            <div class="max-w-4xl mx-auto px-4 py-3 text-right text-[11px] font-bold text-slate-500">Hecho por Jesica Gutierrez</div>
+        </footer>
     </div>
 </body>
 </html>
