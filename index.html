@@ -18,7 +18,7 @@
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-      const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -43,6 +43,14 @@
         let unsubscribeLeaderboard = null;
         let unsubscribeLive = null;
         let dashboardVisible = false;
+        let currentNickname = '';
+
+        function setWelcomeNickname(nickname) {
+            const clean = (nickname || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'participante').trim();
+            currentNickname = clean;
+            const el = document.getElementById('welcome-label');
+            if (el) el.innerHTML = `<span class="ball-title" aria-hidden="true">⚽</span> Bienvenido ${clean}`;
+        }
 
         function showToast(message, type = 'success') {
             const toast = document.getElementById('app-toast');
@@ -89,6 +97,7 @@
                     updatedAt: new Date().toISOString()
                 }, { merge: true });
                 document.getElementById('nickname-modal')?.classList.add('hidden');
+                setWelcomeNickname(nickname);
                 showToast('Apodo guardado correctamente.');
                 window.loadLeaderboard('general');
             } catch (err) {
@@ -115,6 +124,7 @@
                         createUserWithEmailAndPassword(auth, email, pass).then(async (resReg) => {
                             currentUser = resReg.user;
                             await setDoc(doc(db, "usuarios", resReg.user.uid), { uid: resReg.user.uid, nickname: apodo, puntos: 0, puntos_grupos: 0, puntos_32avos: 0, puntos_16avos: 0, puntos_cuartos: 0, puntos_semis: 0, puntos_final: 0, email: email, provider: 'email', updatedAt: new Date().toISOString() }, { merge: true });
+                            setWelcomeNickname(apodo);
                             showToast("Registro creado. Bienvenida al torneo.");
                             showDashboard();
                         }).catch(e => {
@@ -167,12 +177,17 @@
                 const docSnap = await getDoc(userRef);
 
                 if(!docSnap.exists()) {
+                    setWelcomeNickname(user.displayName || user.email?.split('@')[0] || 'participante');
                     showDashboard();
                     showNicknameModal(user);
                     return;
                 }
+
+                const userData = docSnap.data() || {};
+                setWelcomeNickname(userData.nickname || user.displayName || user.email?.split('@')[0] || 'participante');
             } catch (err) {
                 console.error('Sesión iniciada, pero no se pudo leer/crear el usuario en Firestore:', err);
+                setWelcomeNickname(user.displayName || user.email?.split('@')[0] || 'participante');
                 showToast('Tu sesión inició, pero hubo un problema leyendo/creando tu usuario en Firestore. La app abrirá de todos modos.', 'error');
             } finally {
                 showDashboard();
@@ -206,6 +221,7 @@
             if (!currentUser) return;
             document.getElementById('auth-section').classList.add('hidden');
             document.getElementById('app-section').classList.remove('hidden');
+            setWelcomeNickname(currentNickname || currentUser.displayName || currentUser.email?.split('@')[0] || 'participante');
             if (!dashboardVisible) {
                 dashboardVisible = true;
                 escucharDataYFases();
@@ -386,27 +402,140 @@
             }).join('');
         }
 
-        window.loadLeaderboard = (fase) => {
-            if(unsubscribeLeaderboard) unsubscribeLeaderboard();
-            
-            // Permite ordenar dinámicamente por la fase elegida en la interfaz
-            let campoOrden = 'puntos';
-            if(fase !== 'general') campoOrden = 'puntos_' + fase;
+        let rankingFaseActiva = 'general';
+        const rankingState = {
+            usuarios: [],
+            predicciones: [],
+            resultados: {}
+        };
 
-            const q = query(collection(db, "usuarios"), orderBy(campoOrden, "desc"));
-            unsubscribeLeaderboard = onSnapshot(q, (snap) => {
-                const list = document.getElementById('leaderboard-list');
-                list.innerHTML = snap.docs.map((doc, index) => `
-                    <tr class="${index === 0 ? 'bg-emerald-100/90 hover:bg-emerald-100 border-emerald-300' : 'hover:bg-sky-50/80 border-slate-100'} transition border-b text-sm">
-                        <td class="p-4 text-center font-black ${index === 0 ? 'text-emerald-800' : 'text-slate-500'}">${index + 1}</td>
-                        <td class="p-4 font-bold ${index === 0 ? 'text-emerald-900' : 'text-slate-700'}">${index === 0 ? '👑 ' : ''}${doc.data().nickname || 'Competidor'}</td>
-                        <td class="p-4 text-center ${index === 0 ? 'text-emerald-800' : 'text-sky-600'} font-black">${doc.data()[campoOrden] || 0} PTS</td>
-                    </tr>
-                `).join('');
-            }, (err) => {
-                console.error('No se pudo cargar ranking:', err);
-                document.getElementById('leaderboard-list').innerHTML = `<tr><td colspan="3" class="p-4 text-center text-rose-600 text-sm font-bold">No se pudo cargar el ranking. Revisa reglas/índices de Firestore.</td></tr>`;
+        function resultadoTipo(golesL, golesV) {
+            const l = Number(golesL);
+            const v = Number(golesV);
+            if (Number.isNaN(l) || Number.isNaN(v)) return null;
+            if (l > v) return 'L';
+            if (l < v) return 'V';
+            return 'E';
+        }
+
+        function puntosPronostico(pred, resultado) {
+            if (!pred || !resultado) return 0;
+            const predL = Number(pred.golesL);
+            const predV = Number(pred.golesV);
+            const resL = Number(resultado.golesL);
+            const resV = Number(resultado.golesV);
+
+            if ([predL, predV, resL, resV].some(n => Number.isNaN(n))) return 0;
+            if (predL === resL && predV === resV) return 5;
+            if (resultadoTipo(predL, predV) === resultadoTipo(resL, resV)) return 3;
+            return 0;
+        }
+
+        function calcularPuntosPorUsuario() {
+            const partidosPorId = new Map(calendarioPartidos.map(m => [m.id, m]));
+            const acumulados = new Map();
+
+            rankingState.usuarios.forEach(u => {
+                acumulados.set(u.uid, {
+                    uid: u.uid,
+                    nickname: u.nickname || u.email?.split('@')[0] || 'Competidor',
+                    general: 0,
+                    grupos: 0,
+                    '32avos': 0,
+                    '16avos': 0,
+                    cuartos: 0,
+                    semis: 0,
+                    final: 0
+                });
             });
+
+            rankingState.predicciones.forEach(pred => {
+                const uid = pred.uid;
+                const partido = partidosPorId.get(pred.matchId);
+                const resultado = rankingState.resultados[pred.matchId];
+                if (!uid || !partido || !resultado) return;
+
+                if (!acumulados.has(uid)) {
+                    acumulados.set(uid, {
+                        uid,
+                        nickname: pred.nickname || 'Competidor',
+                        general: 0,
+                        grupos: 0,
+                        '32avos': 0,
+                        '16avos': 0,
+                        cuartos: 0,
+                        semis: 0,
+                        final: 0
+                    });
+                }
+
+                const puntos = puntosPronostico(pred, resultado);
+                const fase = partido.fase || 'grupos';
+                const fila = acumulados.get(uid);
+                fila.general += puntos;
+                if (Object.prototype.hasOwnProperty.call(fila, fase)) fila[fase] += puntos;
+            });
+
+            return Array.from(acumulados.values());
+        }
+
+        function renderLeaderboardCalculado() {
+            const list = document.getElementById('leaderboard-list');
+            if (!list) return;
+
+            const fase = rankingFaseActiva || 'general';
+            const ranking = calcularPuntosPorUsuario().sort((a, b) => {
+                const dif = (b[fase] || 0) - (a[fase] || 0);
+                if (dif !== 0) return dif;
+                return (a.nickname || '').localeCompare(b.nickname || '', 'es');
+            });
+
+            if (!ranking.length) {
+                list.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500 text-sm font-bold">Aún no hay participantes registrados.</td></tr>`;
+                return;
+            }
+
+            list.innerHTML = ranking.map((u, index) => `
+                <tr class="${index === 0 ? 'bg-emerald-100/90 hover:bg-emerald-100 border-emerald-300' : 'hover:bg-sky-50/80 border-slate-100'} transition border-b text-sm">
+                    <td class="p-4 text-center font-black ${index === 0 ? 'text-emerald-800' : 'text-slate-500'}">${index + 1}</td>
+                    <td class="p-4 font-bold ${index === 0 ? 'text-emerald-900' : 'text-slate-700'}">${index === 0 ? '👑 ' : ''}${u.nickname || 'Competidor'}</td>
+                    <td class="p-4 text-center ${index === 0 ? 'text-emerald-800' : 'text-sky-600'} font-black">${u[fase] || 0} PTS</td>
+                </tr>
+            `).join('');
+        }
+
+        window.loadLeaderboard = (fase) => {
+            rankingFaseActiva = fase || 'general';
+
+            if(unsubscribeLeaderboard) {
+                if (Array.isArray(unsubscribeLeaderboard)) unsubscribeLeaderboard.forEach(unsub => unsub && unsub());
+                else unsubscribeLeaderboard();
+            }
+
+            const manejarError = (origen) => (err) => {
+                console.error(`No se pudo cargar ${origen} para ranking:`, err);
+                const list = document.getElementById('leaderboard-list');
+                if (list) list.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-rose-600 text-sm font-bold">No se pudo calcular el ranking. Revisa reglas de Firestore para ${origen}.</td></tr>`;
+            };
+
+            const unsubUsuarios = onSnapshot(collection(db, "usuarios"), (snap) => {
+                rankingState.usuarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderLeaderboardCalculado();
+            }, manejarError('usuarios'));
+
+            const unsubPredicciones = onSnapshot(collection(db, "predicciones"), (snap) => {
+                rankingState.predicciones = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderLeaderboardCalculado();
+            }, manejarError('predicciones'));
+
+            const unsubResultados = onSnapshot(collection(db, "partidos_en_vivo"), (snap) => {
+                const resultados = {};
+                snap.forEach(d => { resultados[d.id] = d.data(); });
+                rankingState.resultados = resultados;
+                renderLeaderboardCalculado();
+            }, manejarError('partidos_en_vivo'));
+
+            unsubscribeLeaderboard = [unsubUsuarios, unsubPredicciones, unsubResultados];
         };
 
         window.cambiarFaseRanking = (fase, elemento) => {
@@ -529,7 +658,7 @@
     <div id="app-section" class="hidden min-h-screen flex flex-col relative overflow-hidden">
         <nav class="bg-white/82 backdrop-blur-md text-slate-800 sticky top-0 z-50 border-b border-white/70 shadow-sm">
             <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-2.5">
-                <span class="font-black text-sm tracking-wider bg-gradient-to-r from-sky-600 to-cyan-600 text-transparent bg-clip-text uppercase"><span class="ball-title" aria-hidden="true">⚽</span> Torneo Internacional de patear la pelota</span>
+                <span id="welcome-label" class="font-black text-sm tracking-wider bg-gradient-to-r from-sky-600 to-cyan-600 text-transparent bg-clip-text uppercase"><span class="ball-title" aria-hidden="true">⚽</span> Bienvenido</span>
                 <div class="flex rounded-xl bg-white/70 p-1 border border-slate-200 text-[11px]">
                     <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg bg-sky-500 text-white transition-all duration-200">Jugar</button>
                     <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">En Vivo</button>
