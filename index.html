@@ -18,7 +18,7 @@
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-const firebaseConfig = {
+       const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -781,6 +781,8 @@ const firebaseConfig = {
         @keyframes ballBounce { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(18deg); } }
         .auth-card { background:rgba(255,255,255,.88); }
         .auth-card::before { content:""; position:absolute; inset:0; background:linear-gradient(145deg, rgba(255,255,255,.92), rgba(245,252,255,.82)); pointer-events:none; }
+        .hero-panel { background:linear-gradient(135deg, rgba(236,253,245,.76), rgba(240,249,255,.76), rgba(255,255,255,.70)); backdrop-filter: blur(7px); }
+        .hero-panel::before { content:""; position:absolute; inset:0; background:radial-gradient(circle at 20% 20%, rgba(255,255,255,.45), transparent 35%), radial-gradient(circle at 85% 15%, rgba(56,189,248,.14), transparent 38%); pointer-events:none; }
         #app-section > .app-top-fixed, #app-section > main, #app-section > footer { position:relative; z-index:1; }
         #phase-menu { scroll-margin-top: 0; }
         @media (max-width: 760px) { #flag-wall { gap: 8px; padding: 12px; } #flag-wall img { width: 46px; height: 31px; } }
@@ -789,6 +791,7 @@ const firebaseConfig = {
         .phase-bar { margin-top: 0.75rem; }
         /* Marcos más definidos en todas las tarjetas/frames sin oscurecer el diseño */
         .card-animate,
+        .hero-panel,
         .live-card,
         #sec-ranking > div:last-child,
         #sec-ranking .rank-fase-btn,
@@ -801,6 +804,7 @@ const firebaseConfig = {
             border-color: #94a3b8 !important;
         }
         .card-animate, .live-card, #sec-ranking > div:last-child { background-color: rgba(241,245,249,.94) !important; }
+        .hero-panel { background:linear-gradient(135deg, rgba(236,253,245,.76), rgba(240,249,255,.76), rgba(255,255,255,.70)) !important; }
         #welcome-label { display:flex; align-items:center; gap:.25rem; min-width:0; max-width:46%; line-height:1.05; }
         #welcome-label .welcome-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         #back-to-top { transition: opacity .25s ease, transform .25s ease; }
@@ -887,7 +891,17 @@ const firebaseConfig = {
                 </div>
             </nav>
 
-            <div class="max-w-4xl mx-auto px-4">
+            <div class="max-w-4xl mx-auto px-4 pb-3">
+                <section id="app-hero" class="hero-panel mt-3 mb-3 rounded-[2rem] p-5 md:p-7 border border-slate-300/70 shadow-md overflow-hidden relative">
+                    <div class="relative z-10">
+                        <p class="text-[11px] md:text-sm font-black uppercase tracking-[0.42em] text-sky-600 mb-2">Evento deportivo · 11 de junio</p>
+                        <h2 class="text-2xl md:text-4xl font-black tracking-tight text-slate-900 flex items-center gap-2 leading-tight">
+                            <span class="ball-title flex-none" aria-hidden="true">⚽</span>
+                            <span>Torneo Internacional de patear la pelota</span>
+                        </h2>
+                        <p class="mt-3 text-sm md:text-base text-slate-600 font-medium max-w-2xl leading-relaxed">Guarda tus marcadores, revisa resultados en vivo y sigue el ranking de la comunidad.</p>
+                    </div>
+                </section>
                 <div id="phase-menu" class="phase-bar -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-transparent border-y border-slate-300/70 shadow-none">
                     <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-sky-500 text-white shadow-lg scale-105 transition-all duration-300">Fase de Grupos</button>
                     <button onclick="cambiarFase('32avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">32avos</button>
