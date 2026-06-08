@@ -599,21 +599,78 @@ const firebaseConfig = {
                 container.innerHTML = "<div class='text-center py-16 text-slate-500 bg-white/70 rounded-2xl border border-slate-200 border-dashed'><i class='fas fa-satellite-dish fa-2x mb-3 text-slate-600 animate-pulse'></i><p class='text-sm font-bold uppercase tracking-wider'>Esperando partidos en curso...</p></div>";
                 return;
             }
-            container.innerHTML = Object.keys(resultados).map(id => {
-                const d = resultados[id];
-                const match = calendarioPartidos.find(m => m.id === id);
+
+            const tagsFases = {
+                'grupos': 'Fase de Grupos',
+                '32avos': '32avos de Final',
+                '16avos': '16avos de Final',
+                'cuartos': 'Cuartos de Final',
+                'semis': 'Semifinal',
+                'final': 'Finales'
+            };
+
+            const estadoPartido = (d) => {
+                const raw = String(d.status || d.estado || d.shortStatus || '').toUpperCase();
+                const minuto = d.minuto || d.elapsed || d.minute || '';
+                if (['FT', 'AET', 'PEN'].includes(raw)) return 'Finalizado';
+                if (raw === 'HT') return 'Medio tiempo';
+                if (['1H', '2H', 'ET', 'BT', 'P', 'LIVE'].includes(raw)) return minuto ? `En vivo · ${minuto}'` : 'En vivo';
+                if (raw === 'NS') return 'Por iniciar';
+                return minuto ? `En vivo · ${minuto}'` : 'En vivo';
+            };
+
+            const items = Object.keys(resultados)
+                .map(id => ({ id, data: resultados[id], match: calendarioPartidos.find(m => m.id === id) }))
+                .sort((a, b) => {
+                    const fa = a.match ? new Date(a.match.hora).getTime() : 0;
+                    const fb = b.match ? new Date(b.match.hora).getTime() : 0;
+                    return fa - fb || String(a.id).localeCompare(String(b.id), 'es', { numeric: true });
+                });
+
+            container.innerHTML = items.map(({ id, data: d, match }) => {
+                const localFinal = match ? (match.localCalculado || match.local) : 'Equipo local';
+                const flagLocalFinal = match ? (match.localCalculado ? match.localFlagCalculado : match.localFlag) : '';
+                const visitFinal = match ? (match.visitCalculado || match.visit) : 'Equipo visitante';
+                const flagVisitFinal = match ? (match.visitCalculado ? match.visitFlagCalculado : match.visitFlag) : '';
+                const golesL = (d.golesL ?? d.homeGoals ?? d.local ?? '-');
+                const golesV = (d.golesV ?? d.awayGoals ?? d.visitante ?? '-');
+                const faseTexto = match ? (match.grupo ? 'Grupo ' + match.grupo : tagsFases[match.fase]) : 'Partido';
+                const sedeTexto = match?.sede || d.sede || 'Sede por confirmar';
+                const fechaTexto = match?.hora ? formatearFechaMX(match.hora) : 'Horario por confirmar';
+
                 return `
-                <div class="live-card bg-white/92 text-slate-800 p-4 rounded-2xl shadow-md border border-rose-100 live-pulse">
-                    <div class="live-card-inner grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                        <div class="team-live team-home flex items-center justify-end gap-2 min-w-0 text-right">
-                            <span class="font-black tracking-tight text-slate-700 truncate">${match ? (match.localCalculado || match.local) : '---'}</span>
-                            <img src="${imgBandera(match ? (match.localCalculado ? match.localFlagCalculado : match.localFlag) : '')}" class="w-7 h-5 rounded-sm object-cover shadow flex-none" alt="">
+                <div class="live-card bg-sky-50/92 backdrop-blur-sm p-5 rounded-2xl border border-sky-200/80 flex flex-col md:flex-row items-center justify-between gap-4 shadow-md hover:shadow-lg hover:bg-sky-100/92 hover:border-sky-300/90 transition-all duration-300">
+                    <div class="text-center md:text-left min-w-[150px]">
+                        <span class="px-2.5 py-1 text-[10px] font-black bg-sky-100/80 text-sky-700 rounded-md uppercase tracking-widest border border-sky-200">${faseTexto}</span>
+                        <p class="text-[11px] text-slate-500 mt-2 font-medium"><i class="far fa-clock mr-1 text-sky-500"></i> ${fechaTexto}</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5 font-medium truncate"><i class="fas fa-map-marker-alt mr-1"></i> ${sedeTexto}</p>
+                    </div>
+
+                    <div class="flex items-center gap-2 justify-center w-full md:w-auto flex-1 px-2">
+                        <div class="flex items-center justify-end gap-2.5 w-1/3 text-right">
+                            <span class="font-bold text-slate-700 text-xs md:text-base tracking-tight truncate max-w-[85px] md:max-w-none">${localFinal}</span>
+                            <img src="${imgBandera(flagLocalFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white flex-shrink-0" alt="">
                         </div>
-                        <div class="score-live bg-gradient-to-r from-red-600 to-rose-600 text-white px-4 py-2 rounded-2xl font-mono font-black min-w-[76px] text-center shadow-sm tracking-wider">${d.golesL} - ${d.golesV}</div>
-                        <div class="team-live team-away flex items-center justify-start gap-2 min-w-0 text-left">
-                            <img src="${imgBandera(match ? (match.visitCalculado ? match.visitFlagCalculado : match.visitFlag) : '')}" class="w-7 h-5 rounded-sm object-cover shadow flex-none" alt="">
-                            <span class="font-black tracking-tight text-slate-700 truncate">${match ? (match.visitCalculado || match.visit) : '---'}</span>
+
+                        <div class="flex flex-col items-center gap-1">
+                            <div class="bg-gradient-to-r from-red-600 to-rose-600 text-white px-4 py-2 rounded-2xl font-mono font-black min-w-[82px] text-center shadow-sm tracking-wider">${golesL} - ${golesV}</div>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-rose-600">${estadoPartido(d)}</span>
                         </div>
+
+                        <div class="flex items-center justify-start gap-2.5 w-1/3 text-left">
+                            <img src="${imgBandera(flagVisitFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white flex-shrink-0" alt="">
+                            <span class="font-bold text-slate-700 text-xs md:text-base tracking-tight truncate max-w-[85px] md:max-w-none">${visitFinal}</span>
+                        </div>
+                    </div>
+
+                    <div class="w-full md:w-auto text-center md:text-right">
+                        <span class="inline-flex items-center justify-center px-3 py-2 rounded-xl bg-white/75 border border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                            <span class="relative flex h-2.5 w-2.5 mr-2">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                            </span>
+                            Marcador en vivo
+                        </span>
                     </div>
                 </div>`;
             }).join('');
