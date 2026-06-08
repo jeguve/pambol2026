@@ -99,7 +99,6 @@ const firebaseConfig = {
                     email: currentUser.email || '',
                     photoURL: currentUser.photoURL || '',
                     provider: currentUser.providerData?.[0]?.providerId || 'email',
-                    activo: true,
                     updatedAt: new Date().toISOString()
                 }, { merge: true });
                 document.getElementById('nickname-modal')?.classList.add('hidden');
@@ -280,13 +279,32 @@ const firebaseConfig = {
         }
 
         async function asegurarDocumentoUsuario(user) {
-            if (!user?.uid) return null;
+            if (!user?.uid) return { data: {}, created: false, saved: false };
             const userRef = doc(db, "usuarios", user.uid);
-            const docSnap = await getDoc(userRef);
             const emailName = user.email ? user.email.split('@')[0] : '';
+            const nicknameInicial = String(user.displayName || emailName || 'Competidor').trim();
+
+            let docSnap = null;
+            try {
+                docSnap = await getDoc(userRef);
+            } catch (err) {
+                console.warn('No se pudo leer usuarios/{uid}; se permitirá continuar con sesión activa:', err);
+                return {
+                    data: {
+                        uid: user.uid,
+                        nickname: nicknameInicial,
+                        email: user.email || '',
+                        photoURL: user.photoURL || '',
+                        provider: user.providerData?.[0]?.providerId || 'google.com'
+                    },
+                    created: false,
+                    saved: false
+                };
+            }
 
             if (!docSnap.exists()) {
-                const nicknameInicial = String(user.displayName || emailName || 'Competidor').trim();
+                // Importante: no escribimos campos administrativos como activo/bloqueado desde el cliente,
+                // para evitar conflictos con reglas de Firestore. El bloqueo se controla aparte.
                 const nuevoUsuario = {
                     uid: user.uid,
                     nickname: nicknameInicial,
@@ -299,64 +317,72 @@ const firebaseConfig = {
                     puntos_final: 0,
                     email: user.email || '',
                     photoURL: user.photoURL || '',
-                    provider: user.providerData?.[0]?.providerId || 'email',
-                    activo: true,
-                    createdAt: new Date().toISOString(),
+                    provider: user.providerData?.[0]?.providerId || 'google.com',
                     updatedAt: new Date().toISOString()
                 };
-                await setDoc(userRef, nuevoUsuario, { merge: true });
-                return { data: nuevoUsuario, created: true };
+
+                try {
+                    await setDoc(userRef, nuevoUsuario, { merge: true });
+                    return { data: nuevoUsuario, created: true, saved: true };
+                } catch (err) {
+                    console.warn('No se pudo crear usuarios/{uid}; se permitirá entrar, pero revisa reglas de Firestore:', err);
+                    return { data: nuevoUsuario, created: true, saved: false };
+                }
             }
 
             const userData = docSnap.data() || {};
             const updateData = {
                 uid: userData.uid || user.uid,
                 email: userData.email || user.email || '',
-                photoURL: user.photoURL || userData.photoURL || '',
-                provider: user.providerData?.[0]?.providerId || userData.provider || 'email',
+                photoURL: userData.photoURL || user.photoURL || '',
+                provider: userData.provider || user.providerData?.[0]?.providerId || 'google.com',
                 updatedAt: new Date().toISOString()
             };
 
             if (!String(userData.nickname || userData.apodo || '').trim()) {
-                updateData.nickname = String(user.displayName || emailName || 'Competidor').trim();
+                updateData.nickname = nicknameInicial;
             }
 
-            await setDoc(userRef, updateData, { merge: true });
-            return { data: { ...userData, ...updateData }, created: false };
+            try {
+                await setDoc(userRef, updateData, { merge: true });
+                return { data: { ...userData, ...updateData }, created: false, saved: true };
+            } catch (err) {
+                console.warn('No se pudo actualizar usuarios/{uid}; se continuará usando la información existente:', err);
+                return { data: { ...userData, uid: userData.uid || user.uid }, created: false, saved: false };
+            }
         }
 
         async function registrarOShow(user) {
             currentUser = user;
 
+            let bloqueado = false;
             try {
-                const bloqueado = await usuarioEstaBloqueado(user);
-                if (bloqueado) {
-                    await bloquearAccesoVisual('Usuario sin permisos');
-                    return;
-                }
-
-                const resultadoUsuario = await asegurarDocumentoUsuario(user);
-                const userData = resultadoUsuario?.data || {};
-
-                // Doble validación por si prefieres bloquear dentro del documento del usuario.
-                if (userData.bloqueado === true || userData.blocked === true || userData.activo === false) {
-                    await bloquearAccesoVisual('Usuario sin permisos');
-                    return;
-                }
-
-                const nombreMostrar = obtenerNombreUsuario(user, userData);
-                setWelcomeNickname(nombreMostrar);
-                showDashboard();
-
-                // Si es usuario nuevo de Google, ya existe en usuarios/{uid}; solo le damos oportunidad de ajustar apodo.
-                const esGoogle = user.providerData?.some(p => p.providerId === 'google.com');
-                if (resultadoUsuario?.created && esGoogle) {
-                    showNicknameModal(user);
-                }
+                bloqueado = await usuarioEstaBloqueado(user);
             } catch (err) {
-                console.error('No se pudo completar el registro/validación del usuario en Firestore:', err);
-                showToast('No se pudo preparar tu usuario. Revisa permisos de Firebase e intenta nuevamente.', 'error');
-                await signOut(auth).catch(() => {});
+                console.warn('No se pudo validar bloqueo por Firestore; no se bloqueará a un usuario activo por este error:', err);
+                bloqueado = false;
+            }
+
+            if (bloqueado) {
+                await bloquearAccesoVisual('Usuario sin permisos');
+                return;
+            }
+
+            const resultadoUsuario = await asegurarDocumentoUsuario(user);
+            const userData = resultadoUsuario?.data || {};
+
+            if (userData.bloqueado === true || userData.blocked === true || userData.activo === false) {
+                await bloquearAccesoVisual('Usuario sin permisos');
+                return;
+            }
+
+            const nombreMostrar = obtenerNombreUsuario(user, userData);
+            setWelcomeNickname(nombreMostrar);
+            showDashboard();
+
+            const esGoogle = user.providerData?.some(p => p.providerId === 'google.com');
+            if (resultadoUsuario?.created && esGoogle && resultadoUsuario?.saved) {
+                showNicknameModal(user);
             }
         }
 
