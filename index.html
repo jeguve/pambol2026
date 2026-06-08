@@ -18,7 +18,7 @@
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-       const firebaseConfig = {
+      const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -742,6 +742,12 @@
             document.getElementById(tab).classList.remove('hidden');
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-sky-500', 'bg-blue-600', 'text-white', 'shadow-sm'));
             document.getElementById(btnId).classList.add('bg-sky-500', 'text-white', 'shadow-sm');
+
+            const phaseMenu = document.getElementById('phase-menu');
+            if (phaseMenu) {
+                phaseMenu.classList.toggle('hidden', tab !== 'sec-pronosticos');
+            }
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
     </script>
@@ -894,12 +900,7 @@
             <div class="max-w-4xl mx-auto px-4 pb-3">
                 <section id="app-hero" class="hero-panel mt-3 mb-3 rounded-[2rem] p-5 md:p-7 border border-slate-300/70 shadow-md overflow-hidden relative">
                     <div class="relative z-10">
-                        <div class="uppercase tracking-[0.18em] text-sky-600 font-black text-[10px] md:text-sm leading-tight">
-    <div>Evento Deportivo</div>
-    <div class="md:inline md:ml-2">
-        11 Junio a 19 Julio
-    </div>
-</div>
+                        <p class="text-[10px] md:text-sm font-black uppercase tracking-[0.18em] md:tracking-[0.32em] text-sky-600 mb-2 leading-tight"><span class="block md:inline">Evento deportivo</span><span class="block md:inline md:ml-2">11 junio a 19 julio</span></p>
                         <h2 class="text-2xl md:text-4xl font-black tracking-tight text-slate-900 flex items-center gap-2 leading-tight">
                             <span class="ball-title flex-none" aria-hidden="true">⚽</span>
                             <span>Torneo Internacional de patear la pelota</span>
