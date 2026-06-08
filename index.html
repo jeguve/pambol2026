@@ -18,7 +18,7 @@
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-      const firebaseConfig = {
+     const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -750,6 +750,20 @@
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
+
+        window.openInstructions = () => {
+            const modal = document.getElementById('instructions-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        };
+
+        window.closeInstructions = () => {
+            const modal = document.getElementById('instructions-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        };
     </script>
     <style>
         :root { color-scheme: light; }
@@ -804,6 +818,7 @@
         #phase-menu,
         #auth-section .max-w-sm,
         #nickname-modal .max-w-sm,
+        #instructions-modal .max-w-lg,
         footer,
         .team-live {
             border-width: 2pt !important;
@@ -846,6 +861,26 @@
             <p class="text-xs text-slate-500 mt-1 mb-4">Este nombre aparecerá en el ranking del torneo.</p>
             <input id="nickname-modal-input" type="text" maxlength="24" placeholder="Tu apodo" class="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 text-slate-800 font-bold transition text-center">
             <button onclick="saveNicknameFromModal()" class="w-full mt-3 bg-emerald-500 text-white p-3 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-emerald-400 transition shadow-md">Guardar apodo</button>
+        </div>
+    </div>
+
+    <div id="instructions-modal" class="hidden fixed inset-0 z-[95] bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target === this) closeInstructions()">
+        <div class="bg-white/95 rounded-3xl shadow-2xl border-2 border-slate-300 w-full max-w-lg p-6 text-left relative">
+            <button onclick="closeInstructions()" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-slate-100 text-slate-500 font-black hover:bg-slate-200 active:scale-95 transition" aria-label="Cerrar instrucciones">×</button>
+            <div class="text-center pr-8">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-sky-100 text-sky-600 text-2xl font-black mb-3">?</div>
+                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">Instrucciones</h2>
+            </div>
+            <ul class="mt-5 space-y-3 text-sm md:text-base text-slate-700 font-semibold leading-relaxed">
+                <li class="flex gap-2"><span class="text-sky-500 font-black">•</span><span>Registra tus pronósticos antes de que inicie cada partido.</span></li>
+                <li class="flex gap-2"><span class="text-sky-500 font-black">•</span><span>Los marcadores se bloquean 15 minutos antes del inicio.</span></li>
+                <li class="flex gap-2"><span class="text-sky-500 font-black">•</span><span>5 puntos por marcador exacto.</span></li>
+                <li class="flex gap-2"><span class="text-sky-500 font-black">•</span><span>3 puntos por acertar ganador o empate.</span></li>
+                <li class="flex gap-2"><span class="text-sky-500 font-black">•</span><span>0 puntos si no aciertas.</span></li>
+                <li class="flex gap-2"><span class="text-sky-500 font-black">•</span><span>El ranking general es la suma de todas las fases.</span></li>
+                <li class="flex gap-2"><span class="text-sky-500 font-black">•</span><span>Habrá un ganador por cada fase. Si hay empate, se repartirá el premio.</span></li>
+            </ul>
+            <button onclick="closeInstructions()" class="w-full mt-6 bg-sky-500 text-white p-3 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-sky-400 transition shadow-md">Entendido</button>
         </div>
     </div>
     <div id="flag-wall" aria-hidden="true"></div>
@@ -893,6 +928,7 @@
                         <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg bg-sky-500 text-white transition-all duration-200">Jugar</button>
                         <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">En Vivo</button>
                         <button id="nav-r" onclick="showTab('sec-ranking', 'nav-r')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">Ranking</button>
+                        <button id="instructions-btn" onclick="openInstructions()" class="ml-1 w-8 h-8 rounded-full bg-white/80 text-sky-600 border border-slate-300/70 font-black text-sm hover:bg-sky-50 active:scale-95 transition flex-none" aria-label="Abrir instrucciones">?</button>
                     </div>
                 </div>
             </nav>
@@ -977,6 +1013,10 @@
             if (!btn) return;
             btn.classList.toggle('is-hidden', window.scrollY < 360);
         }, { passive: true });
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && window.closeInstructions) window.closeInstructions();
+        });
     </script>
 
 </body>
