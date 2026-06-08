@@ -12,13 +12,13 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithRedirect, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, getRedirectResult, createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithRedirect, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, getRedirectResult, createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, signOut, fetchSignInMethodsForEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-const firebaseConfig = {
+       const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -44,10 +44,14 @@ const firebaseConfig = {
         let unsubscribeLive = null;
         let dashboardVisible = false;
         let currentNickname = '';
+        let ultimoEmailRevisado = '';
+        let emailRegistradoDetectado = false;
 
         function setWelcomeNickname(nickname) {
-            const clean = (nickname || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'participante').trim();
+            const saved = currentUser?.uid ? localStorage.getItem(`nickname_${currentUser.uid}`) : '';
+            const clean = (nickname || saved || currentUser?.displayName || 'participante').trim();
             currentNickname = clean;
+            if (currentUser?.uid && clean && clean !== 'participante') localStorage.setItem(`nickname_${currentUser.uid}`, clean);
             const el = document.getElementById('welcome-label');
             if (el) el.innerHTML = `<span class="ball-title flex-none" aria-hidden="true">⚽</span><span class="welcome-word">Bienvenido</span><span class="welcome-name">${clean}</span>`;
         }
@@ -102,7 +106,7 @@ const firebaseConfig = {
                 window.loadLeaderboard('general');
             } catch (err) {
                 console.error('No se pudo guardar el apodo:', err);
-                showToast('No se pudo guardar el apodo. Revisa permisos de Firestore.', 'error');
+                showToast('No se pudo guardar el apodo. Intenta nuevamente.', 'error');
             }
         };
 
@@ -134,7 +138,7 @@ const firebaseConfig = {
             return false;
         }
 
-        async function bloquearAccesoVisual(mensaje = 'Tu acceso está bloqueado. Contacta a la organizadora del torneo.') {
+        async function bloquearAccesoVisual(mensaje = 'Usuario sin permisos') {
             currentUser = null;
             dashboardVisible = false;
             document.getElementById('app-section')?.classList.add('hidden');
@@ -144,36 +148,99 @@ const firebaseConfig = {
             showToast(mensaje, 'error');
         }
 
+
+        function setNicknameLoginVisible(visible, message = '') {
+            const wrapper = document.getElementById('nickname-wrapper');
+            const input = document.getElementById('nickname-input');
+            const hint = document.getElementById('nickname-hint');
+            if (!wrapper) return;
+            wrapper.classList.toggle('hidden', !visible);
+            if (input && !visible) {
+                input.value = '';
+                input.classList.remove('border-rose-300', 'bg-rose-50');
+            }
+            if (hint && message) hint.textContent = message;
+        }
+
+        window.revisarEmailLogin = async () => {
+            const email = document.getElementById('email-input')?.value.trim().toLowerCase() || '';
+            if (!email || !email.includes('@') || email === ultimoEmailRevisado) return;
+            ultimoEmailRevisado = email;
+            emailRegistradoDetectado = false;
+
+            try {
+                const methods = await fetchSignInMethodsForEmail(auth, email);
+                emailRegistradoDetectado = methods.length > 0;
+                setNicknameLoginVisible(!emailRegistradoDetectado, emailRegistradoDetectado
+                    ? ''
+                    : 'Este correo no parece estar registrado. Escribe tu apodo para crear tu usuario.');
+            } catch (err) {
+                // Algunos proyectos tienen protección contra enumeración de emails. En ese caso no mostramos error,
+                // y pedimos apodo solo si Firebase confirma que el usuario no existe al intentar entrar.
+                console.warn('No se pudo revisar si el correo ya existe:', err);
+                setNicknameLoginVisible(false);
+            }
+        };
+
         // --- SISTEMA DE AUTENTICACIÓN ---
-        window.loginCorreo = () => {
-            const email = document.getElementById('email-input').value.trim();
+        window.loginCorreo = async () => {
+            const email = document.getElementById('email-input').value.trim().toLowerCase();
             const pass = document.getElementById('password-input').value;
-            const apodo = document.getElementById('nickname-input')?.value.trim() || '';
+            const apodoInput = document.getElementById('nickname-input');
+            const apodo = apodoInput?.value.trim() || '';
             if(!email || !pass) return showToast("Por favor, llena correo y contraseña.", 'error');
 
-            signInWithEmailAndPassword(auth, email, pass)
-                .then((res) => registrarOShow(res.user))
-                .catch((err) => {
-                    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-                        if(!apodo) {
-                            document.getElementById('nickname-input')?.classList.add('border-rose-300', 'bg-rose-50');
-                            return showToast("Si eres usuario nuevo, escribe tu apodo en el campo visible del login.", 'error');
-                        }
-                        createUserWithEmailAndPassword(auth, email, pass).then(async (resReg) => {
-                            currentUser = resReg.user;
-                            await setDoc(doc(db, "usuarios", resReg.user.uid), { uid: resReg.user.uid, nickname: apodo, puntos: 0, puntos_grupos: 0, puntos_32avos: 0, puntos_16avos: 0, puntos_cuartos: 0, puntos_semis: 0, puntos_final: 0, email: email, provider: 'email', updatedAt: new Date().toISOString() }, { merge: true });
-                            setWelcomeNickname(apodo);
-                            showToast("Registro creado. Bienvenida al torneo.");
-                            showDashboard();
-                        }).catch(e => {
-                            console.error('Error al registrar:', e);
-                            showToast("No se pudo crear el registro. Revisa Firebase Authentication/Firestore.", 'error');
-                        });
-                    } else {
-                        console.error('Error al iniciar sesión:', err);
-                        showToast("No se pudo iniciar sesión. Revisa correo, contraseña o configuración de Firebase.", 'error');
+            try {
+                const res = await signInWithEmailAndPassword(auth, email, pass);
+                setNicknameLoginVisible(false);
+                await registrarOShow(res.user);
+            } catch (err) {
+                console.error('Error al iniciar sesión con correo:', err);
+
+                if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+                    // Con Email Enumeration Protection, Firebase puede usar invalid-credential tanto para
+                    // usuario inexistente como para contraseña incorrecta. Solo intentamos registro si hay apodo.
+                    if(!apodo) {
+                        setNicknameLoginVisible(true, 'Si este correo es nuevo, escribe tu apodo y vuelve a presionar Entrar / Registrarse. Si ya existe, revisa tu contraseña.');
+                        apodoInput?.classList.add('border-rose-300', 'bg-rose-50');
+                        apodoInput?.focus();
+                        return showToast("Escribe tu apodo solo si estás creando una cuenta nueva.", 'error');
                     }
-                });
+
+                    try {
+                        const resReg = await createUserWithEmailAndPassword(auth, email, pass);
+                        currentUser = resReg.user;
+                        await setDoc(doc(db, "usuarios", resReg.user.uid), {
+                            uid: resReg.user.uid,
+                            nickname: apodo,
+                            puntos: 0,
+                            puntos_grupos: 0,
+                            puntos_32avos: 0,
+                            puntos_16avos: 0,
+                            puntos_cuartos: 0,
+                            puntos_semis: 0,
+                            puntos_final: 0,
+                            email,
+                            provider: 'email',
+                            updatedAt: new Date().toISOString()
+                        }, { merge: true });
+                        setNicknameLoginVisible(false);
+                        setWelcomeNickname(apodo);
+                        showToast("Registro creado. Bienvenida al torneo.");
+                        showDashboard();
+                    } catch (e) {
+                        console.error('Error al registrar:', e);
+                        if (e.code === 'auth/email-already-in-use') {
+                            setNicknameLoginVisible(false);
+                            return showToast("Ese correo ya está registrado. Revisa tu contraseña.", 'error');
+                        }
+                        showToast("No se pudo crear el registro. Intenta nuevamente.", 'error');
+                    }
+                    return;
+                }
+
+                showToast("No se pudo iniciar sesión. Revisa correo o contraseña.", 'error');
+            }
         };
 
         window.loginGoogle = async () => {
@@ -192,7 +259,7 @@ const firebaseConfig = {
                 // Si la persona cerró la ventana, no mostramos error técnico.
                 if (err.code === 'auth/popup-closed-by-user') return;
 
-                showToast('No se pudo iniciar sesión con Google. Revisa que Google esté habilitado en Firebase Authentication y que este dominio esté autorizado.', 'error');
+                showToast('No se pudo iniciar sesión con Google. Intenta nuevamente.', 'error');
             }
         };
 
@@ -202,7 +269,7 @@ const firebaseConfig = {
             })
             .catch((err) => {
                 console.error('Error al volver del redirect de Google:', err);
-                showToast('Google inició el proceso, pero hubo un problema al regresar a la página. Revisa dominios autorizados en Firebase.', 'error');
+                // No mostramos mensajes técnicos al usuario si el redirect tuvo un problema recuperable.
             });
 
         async function registrarOShow(user) {
@@ -211,7 +278,7 @@ const firebaseConfig = {
             try {
                 const bloqueado = await usuarioEstaBloqueado(user);
                 if (bloqueado) {
-                    await bloquearAccesoVisual('Tu acceso está bloqueado para este torneo. Contacta a Jesica Gutierrez.');
+                    await bloquearAccesoVisual('Usuario sin permisos');
                     return;
                 }
 
@@ -229,16 +296,17 @@ const firebaseConfig = {
 
                 // Doble validación por si prefieres bloquear dentro del documento del usuario.
                 if (userData.bloqueado === true || userData.blocked === true || userData.activo === false) {
-                    await bloquearAccesoVisual('Tu acceso está bloqueado para este torneo. Contacta a Jesica Gutierrez.');
+                    await bloquearAccesoVisual('Usuario sin permisos');
                     return;
                 }
 
                 setWelcomeNickname(userData.nickname || user.displayName || user.email?.split('@')[0] || 'participante');
                 showDashboard();
             } catch (err) {
-                console.error('Sesión iniciada, pero no se pudo validar el acceso en Firestore:', err);
-                setWelcomeNickname(user.displayName || user.email?.split('@')[0] || 'participante');
-                showToast('Tu sesión inició, pero no se pudo validar si el usuario está bloqueado. Revisa permisos de Firestore.', 'error');
+                console.error('Sesión iniciada, pero no se pudo validar completamente el acceso en Firestore:', err);
+                // No mostramos este error al usuario activo para no confundirlo. Si Firestore tiene un problema real,
+                // se verá en consola y las reglas se pueden ajustar sin bloquear la experiencia.
+                setWelcomeNickname(currentNickname || user.displayName || 'participante');
                 showDashboard();
             }
         }
@@ -310,7 +378,7 @@ const firebaseConfig = {
             }, (err) => {
                 console.error('No se pudo escuchar partidos_en_vivo:', err);
                 renderMatches();
-                document.getElementById('live-container').innerHTML = "<div class='text-center py-10 text-rose-600 bg-white/80 rounded-2xl border border-rose-100'><b>No se pudieron cargar resultados en vivo.</b><br><span class='text-xs'>Revisa reglas de Firestore para partidos_en_vivo.</span></div>";
+                document.getElementById('live-container').innerHTML = "<div class='text-center py-10 text-rose-600 bg-white/80 rounded-2xl border border-rose-100'><b>No se pudieron cargar resultados en vivo.</b><br><span class='text-xs'>Intenta actualizar la página.</span></div>";
             });
         }
 
@@ -430,7 +498,7 @@ const firebaseConfig = {
                 showToast("Marcador guardado correctamente.");
             } catch (err) {
                 console.error('No se pudo guardar el pronóstico:', err);
-                showToast('No se pudo guardar el marcador. Revisa reglas de Firestore para predicciones.', 'error');
+                showToast('No se pudo guardar el marcador. Intenta nuevamente.', 'error');
             }
         };
 
@@ -477,6 +545,7 @@ const firebaseConfig = {
         }
 
         let rankingFaseActiva = 'general';
+        let rankingListenersStarted = false;
         const rankingState = {
             usuarios: [],
             predicciones: [],
@@ -578,18 +647,47 @@ const firebaseConfig = {
             `).join('');
         }
 
-        window.loadLeaderboard = (fase) => {
-            rankingFaseActiva = fase || 'general';
+        const rankingLabels = {
+            general: 'General',
+            grupos: 'Fase de Grupos',
+            '32avos': '32avos',
+            '16avos': '16avos',
+            cuartos: 'Cuartos',
+            semis: 'Semis',
+            final: 'Final'
+        };
 
-            if(unsubscribeLeaderboard) {
-                if (Array.isArray(unsubscribeLeaderboard)) unsubscribeLeaderboard.forEach(unsub => unsub && unsub());
-                else unsubscribeLeaderboard();
-            }
+        function actualizarBotonesRanking(fase) {
+            document.querySelectorAll('.rank-fase-btn').forEach(btn => {
+                const activa = btn.dataset.fase === fase;
+                btn.classList.toggle('bg-sky-500', activa);
+                btn.classList.toggle('text-white', activa);
+                btn.classList.toggle('shadow-sm', activa);
+                btn.classList.toggle('bg-white/75', !activa);
+                btn.classList.toggle('text-slate-500', !activa);
+            });
+
+            const label = document.getElementById('ranking-fase-label');
+            if (label) label.textContent = `Mostrando: ${rankingLabels[fase] || 'General'}`;
+
+            const puntosHeader = document.getElementById('ranking-puntos-header');
+            if (puntosHeader) puntosHeader.textContent = fase === 'general' ? 'PUNTOS TOTALES' : 'PUNTOS FASE';
+        }
+
+        window.loadLeaderboard = (fase) => {
+            rankingFaseActiva = fase || rankingFaseActiva || 'general';
+            actualizarBotonesRanking(rankingFaseActiva);
+            renderLeaderboardCalculado();
+
+            // Los listeners se abren una sola vez. Al cambiar de fase solo se vuelve a pintar,
+            // así evitamos que la tabla parezca quedarse en General por recargas asíncronas.
+            if (rankingListenersStarted) return;
+            rankingListenersStarted = true;
 
             const manejarError = (origen) => (err) => {
                 console.error(`No se pudo cargar ${origen} para ranking:`, err);
                 const list = document.getElementById('leaderboard-list');
-                if (list) list.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-rose-600 text-sm font-bold">No se pudo calcular el ranking. Revisa reglas de Firestore para ${origen}.</td></tr>`;
+                if (list) list.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-rose-600 text-sm font-bold">No se pudo cargar el ranking por el momento.</td></tr>`;
             };
 
             const unsubUsuarios = onSnapshot(collection(db, "usuarios"), (snap) => {
@@ -613,13 +711,10 @@ const firebaseConfig = {
         };
 
         window.cambiarFaseRanking = (fase, elemento) => {
-            document.querySelectorAll('.rank-fase-btn').forEach(btn => {
-                btn.classList.remove('bg-sky-500', 'bg-blue-600', 'text-white', 'shadow-sm');
-                btn.classList.add('bg-white/75', 'text-slate-500');
-            });
-            elemento.classList.remove('bg-white/75', 'bg-slate-900', 'text-slate-400', 'text-slate-500');
-            elemento.classList.add('bg-sky-500', 'text-white', 'shadow-sm');
-            window.loadLeaderboard(fase);
+            rankingFaseActiva = fase || 'general';
+            actualizarBotonesRanking(rankingFaseActiva);
+            renderLeaderboardCalculado();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
         window.cambiarFase = (fase, elemento) => {
@@ -637,6 +732,7 @@ const firebaseConfig = {
                 renderMatches();
                 loadUserPredictions();
                 listContainer.style.opacity = '1';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }, 100);
         };
 
@@ -645,6 +741,7 @@ const firebaseConfig = {
             document.getElementById(tab).classList.remove('hidden');
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-sky-500', 'bg-blue-600', 'text-white', 'shadow-sm'));
             document.getElementById(btnId).classList.add('bg-sky-500', 'text-white', 'shadow-sm');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         };
     </script>
     <style>
@@ -688,11 +785,22 @@ const firebaseConfig = {
         @media (max-width: 760px) { #flag-wall { gap: 8px; padding: 12px; } #flag-wall img { width: 46px; height: 31px; } }
     
         .app-top-fixed { position: relative; z-index: 10; }
-        .app-hero-card { margin: 0.75rem auto 0; }
         .phase-bar { margin-top: 0.75rem; }
-        @media (max-width: 640px) { .app-hero-card { margin-top: 0.5rem; } }
-
-        #welcome-label { display:flex; align-items:center; gap:.25rem; min-width:0; max-width:52%; line-height:1.05; }
+        /* Marcos más definidos en todas las tarjetas/frames sin oscurecer el diseño */
+        .card-animate,
+        .live-card,
+        #sec-ranking > div:last-child,
+        #sec-ranking .rank-fase-btn,
+        #phase-menu,
+        #auth-section .max-w-sm,
+        #nickname-modal .max-w-sm,
+        footer,
+        .team-live {
+            border-width: 2pt !important;
+            border-color: #94a3b8 !important;
+        }
+        .card-animate, .live-card, #sec-ranking > div:last-child { background-color: rgba(241,245,249,.94) !important; }
+        #welcome-label { display:flex; align-items:center; gap:.25rem; min-width:0; max-width:46%; line-height:1.05; }
         #welcome-label .welcome-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         #back-to-top { transition: opacity .25s ease, transform .25s ease; }
         #back-to-top.is-hidden { opacity:0; pointer-events:none; transform: translateY(10px) scale(.96); }
@@ -703,9 +811,6 @@ const firebaseConfig = {
             #welcome-label .welcome-word { flex:none; }
             #welcome-label .welcome-name { max-width:70%; }
             .nav-btn { flex:1; text-align:center; padding-left:.65rem; padding-right:.65rem; }
-            .app-hero-card { padding: .95rem; border-radius: 1.25rem; }
-            .app-hero-card h1 { font-size: 1rem; }
-            .app-hero-card p { font-size: .7rem; }
             #phase-menu { padding-top:.55rem; padding-bottom:.55rem; }
             .fase-btn { padding: .58rem .78rem; font-size: .64rem; }
             #sec-vivo > .flex { align-items:flex-start; }
@@ -744,12 +849,12 @@ const firebaseConfig = {
             <h1 class="text-lg font-black text-slate-800 tracking-tight uppercase">Torneo Internacional de patear la pelota<br><span class="text-[10px] text-sky-600 font-bold tracking-widest">(11 Jun - 19 Jul)</span></h1>
             
             <div class="space-y-3 text-left">
-                <input type="email" id="email-input" placeholder="Correo electrónico" class="w-full p-3 text-sm bg-white/90 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 text-slate-800 font-medium transition">
+                <input type="email" id="email-input" onblur="revisarEmailLogin()" onchange="revisarEmailLogin()" placeholder="Correo electrónico" class="w-full p-3 text-sm bg-white/90 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 text-slate-800 font-medium transition">
                 <input type="password" id="password-input" placeholder="Contraseña" class="w-full p-3 text-sm bg-white/90 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 text-slate-800 font-medium transition">
                 <div>
                     <label for="nickname-input" class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5">Apodo para el ranking</label>
                     <input type="text" id="nickname-input" maxlength="24" placeholder="Ej. Jesy82" class="w-full p-3 text-sm bg-white/90 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 text-slate-800 font-bold transition">
-                    <p class="text-[10px] text-slate-400 mt-1.5 leading-snug">Solo es necesario si te estás registrando por primera vez con correo. Si entras con Google y no tienes apodo, te lo pedirá después.</p>
+                    <p id="nickname-hint" class="text-[10px] text-slate-400 mt-1.5 leading-snug">Solo es necesario si te estás registrando por primera vez con correo. Si entras con Google y no tienes apodo, te lo pedirá después.</p>
                 </div>
                 <button onclick="loginCorreo()" class="w-full bg-gradient-to-r from-sky-500 to-cyan-500 text-white p-3 rounded-xl font-black text-xs uppercase tracking-wider hover:from-sky-400 hover:to-cyan-400 transition shadow-md active:scale-98">Entrar / Registrarse</button>
             </div>
@@ -782,18 +887,7 @@ const firebaseConfig = {
             </nav>
 
             <div class="max-w-4xl mx-auto px-4">
-                <div class="app-hero-card rounded-3xl bg-white/82 border border-white/80 shadow-sm backdrop-blur-sm p-4 overflow-hidden relative">
-                    <div class="absolute inset-0 opacity-20 bg-gradient-to-r from-sky-200 via-white to-emerald-200 pointer-events-none"></div>
-                    <div class="relative">
-                        <div class="flex-1">
-                            <p class="text-[10px] font-black uppercase tracking-[0.25em] text-sky-600">Evento deportivo · 11 de junio</p>
-                            <h1 class="text-xl md:text-2xl font-black text-slate-800 leading-tight"><span class="ball-title" aria-hidden="true">⚽</span>Torneo Internacional de patear la pelota</h1>
-                            <p class="text-xs text-slate-500 mt-1">Guarda tus marcadores, revisa resultados en vivo y sigue el ranking de la comunidad.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="phase-menu" class="phase-bar -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-sky-50/94 backdrop-blur-md border-y border-sky-100 shadow-md">
+                <div id="phase-menu" class="phase-bar -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-slate-100/88 backdrop-blur-sm border-y border-slate-400 shadow-sm">
                     <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-sky-500 text-white shadow-lg scale-105 transition-all duration-300">Fase de Grupos</button>
                     <button onclick="cambiarFase('32avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">32avos</button>
                     <button onclick="cambiarFase('16avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">16avos</button>
@@ -825,16 +919,17 @@ const firebaseConfig = {
             <!-- PESTAÑA RANKING POR FASE -->
             <section id="sec-ranking" class="main-content hidden space-y-4">
                 <h2 class="text-base font-black uppercase tracking-widest text-slate-700">📊 Posiciones de la Comunidad</h2>
+                <p id="ranking-fase-label" class="text-xs font-bold text-slate-500 -mt-2">Mostrando: General</p>
                 
                 <!-- Filtros por Fase para el Ranking -->
                 <div class="flex gap-1 overflow-x-auto pb-2 scrollbar-none text-[10px] items-center">
-                    <button onclick="cambiarFaseRanking('general', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-sky-500 text-white font-black uppercase tracking-wider">General</button>
-                    <button onclick="cambiarFaseRanking('grupos', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">Grupos</button>
-                    <button onclick="cambiarFaseRanking('32avos', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">32avos</button>
-                    <button onclick="cambiarFaseRanking('16avos', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">16avos</button>
-                    <button onclick="cambiarFaseRanking('cuartos', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">Cuartos</button>
-                    <button onclick="cambiarFaseRanking('semis', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">Semis</button>
-                    <button onclick="cambiarFaseRanking('final', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">Final</button>
+                    <button data-fase="general" onclick="cambiarFaseRanking('general', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-sky-500 text-white font-black uppercase tracking-wider">General</button>
+                    <button data-fase="grupos" onclick="cambiarFaseRanking('grupos', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">Grupos</button>
+                    <button data-fase="32avos" onclick="cambiarFaseRanking('32avos', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">32avos</button>
+                    <button data-fase="16avos" onclick="cambiarFaseRanking('16avos', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">16avos</button>
+                    <button data-fase="cuartos" onclick="cambiarFaseRanking('cuartos', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">Cuartos</button>
+                    <button data-fase="semis" onclick="cambiarFaseRanking('semis', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">Semis</button>
+                    <button data-fase="final" onclick="cambiarFaseRanking('final', this)" class="rank-fase-btn flex-none px-3 py-2 rounded-lg bg-white/75 text-slate-500 font-black uppercase tracking-wider">Final</button>
                 </div>
 
                 <div class="bg-white/86 backdrop-blur-sm rounded-2xl border border-white/70 overflow-hidden shadow-md">
@@ -843,7 +938,7 @@ const firebaseConfig = {
                             <tr>
                                 <th class="p-4 text-center w-16">POS</th>
                                 <th class="p-4">NICKNAME</th>
-                                <th class="p-4 text-center w-28">PUNTOS</th>
+                                <th id="ranking-puntos-header" class="p-4 text-center w-28">PUNTOS TOTALES</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-list"></tbody>
