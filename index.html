@@ -18,7 +18,7 @@
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-       const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -49,9 +49,10 @@
 
         function setWelcomeNickname(nickname) {
             const saved = currentUser?.uid ? localStorage.getItem(`nickname_${currentUser.uid}`) : '';
-            const clean = (nickname || saved || currentUser?.displayName || 'participante').trim();
+            const emailName = currentUser?.email ? currentUser.email.split('@')[0] : '';
+            const clean = (nickname || saved || currentUser?.displayName || emailName || '').trim();
             currentNickname = clean;
-            if (currentUser?.uid && clean && clean !== 'participante') localStorage.setItem(`nickname_${currentUser.uid}`, clean);
+            if (currentUser?.uid && clean) localStorage.setItem(`nickname_${currentUser.uid}`, clean);
             const el = document.getElementById('welcome-label');
             if (el) el.innerHTML = `<span class="ball-title flex-none" aria-hidden="true">⚽</span><span class="welcome-word">Bienvenido</span><span class="welcome-name">${clean}</span>`;
         }
@@ -286,7 +287,7 @@
                 const docSnap = await getDoc(userRef);
 
                 if(!docSnap.exists()) {
-                    setWelcomeNickname(user.displayName || user.email?.split('@')[0] || 'participante');
+                    setWelcomeNickname(user.displayName || user.email?.split('@')[0] || '');
                     showDashboard();
                     showNicknameModal(user);
                     return;
@@ -300,13 +301,13 @@
                     return;
                 }
 
-                setWelcomeNickname(userData.nickname || user.displayName || user.email?.split('@')[0] || 'participante');
+                setWelcomeNickname(userData.nickname || user.displayName || user.email?.split('@')[0] || '');
                 showDashboard();
             } catch (err) {
                 console.error('Sesión iniciada, pero no se pudo validar completamente el acceso en Firestore:', err);
                 // No mostramos este error al usuario activo para no confundirlo. Si Firestore tiene un problema real,
                 // se verá en consola y las reglas se pueden ajustar sin bloquear la experiencia.
-                setWelcomeNickname(currentNickname || user.displayName || 'participante');
+                setWelcomeNickname(currentNickname || user.displayName || '');
                 showDashboard();
             }
         }
@@ -338,7 +339,7 @@
             if (!currentUser) return;
             document.getElementById('auth-section').classList.add('hidden');
             document.getElementById('app-section').classList.remove('hidden');
-            setWelcomeNickname(currentNickname || currentUser.displayName || currentUser.email?.split('@')[0] || 'participante');
+            setWelcomeNickname(currentNickname || currentUser.displayName || currentUser.email?.split('@')[0] || '');
             if (!dashboardVisible) {
                 dashboardVisible = true;
                 escucharDataYFases();
@@ -874,11 +875,11 @@
 
     <!-- MAIN APP -->
     <div id="app-section" class="hidden min-h-screen flex flex-col relative">
-        <div class="app-top-fixed bg-white/80 backdrop-blur-md border-b border-white/70 shadow-sm">
+        <div class="app-top-fixed bg-transparent border-b border-transparent shadow-none">
             <nav class="text-slate-800">
                 <div class="max-w-4xl mx-auto flex justify-between items-center px-4 py-2.5">
                     <span id="welcome-label" class="font-black text-sm tracking-wider bg-gradient-to-r from-sky-600 to-cyan-600 text-transparent bg-clip-text uppercase"><span class="ball-title flex-none" aria-hidden="true">⚽</span><span class="welcome-word">Bienvenido</span><span class="welcome-name"></span></span>
-                    <div class="flex rounded-xl bg-white/70 p-1 border border-slate-200 text-[11px] w-full sm:w-auto">
+                    <div class="flex rounded-xl bg-white/25 backdrop-blur-sm p-1 border border-slate-300/70 text-[11px] w-full sm:w-auto">
                         <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg bg-sky-500 text-white transition-all duration-200">Jugar</button>
                         <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">En Vivo</button>
                         <button id="nav-r" onclick="showTab('sec-ranking', 'nav-r')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">Ranking</button>
@@ -887,7 +888,7 @@
             </nav>
 
             <div class="max-w-4xl mx-auto px-4">
-                <div id="phase-menu" class="phase-bar -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-slate-100/88 backdrop-blur-sm border-y border-slate-400 shadow-sm">
+                <div id="phase-menu" class="phase-bar -mx-4 px-4 py-2 flex gap-2 overflow-x-auto scrollbar-none items-center bg-transparent border-y border-slate-300/70 shadow-none">
                     <button onclick="cambiarFase('grupos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-sky-500 text-white shadow-lg scale-105 transition-all duration-300">Fase de Grupos</button>
                     <button onclick="cambiarFase('32avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">32avos</button>
                     <button onclick="cambiarFase('16avos', this)" class="fase-btn flex-none px-4 py-2.5 rounded-xl border border-transparent text-xs font-black uppercase tracking-wider bg-white/75 text-slate-500 transition-all duration-300">16avos</button>
