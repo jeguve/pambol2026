@@ -18,7 +18,7 @@
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-     const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
   authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
   projectId: "quiniela-mundial2026-919e3",
@@ -99,6 +99,7 @@
                     email: currentUser.email || '',
                     photoURL: currentUser.photoURL || '',
                     provider: currentUser.providerData?.[0]?.providerId || 'email',
+                    activo: true,
                     updatedAt: new Date().toISOString()
                 }, { merge: true });
                 document.getElementById('nickname-modal')?.classList.add('hidden');
@@ -273,6 +274,57 @@
                 // No mostramos mensajes técnicos al usuario si el redirect tuvo un problema recuperable.
             });
 
+        function obtenerNombreUsuario(user, userData = {}) {
+            const emailName = user?.email ? user.email.split('@')[0] : '';
+            return String(userData.nickname || userData.apodo || user?.displayName || emailName || 'Competidor').trim();
+        }
+
+        async function asegurarDocumentoUsuario(user) {
+            if (!user?.uid) return null;
+            const userRef = doc(db, "usuarios", user.uid);
+            const docSnap = await getDoc(userRef);
+            const emailName = user.email ? user.email.split('@')[0] : '';
+
+            if (!docSnap.exists()) {
+                const nicknameInicial = String(user.displayName || emailName || 'Competidor').trim();
+                const nuevoUsuario = {
+                    uid: user.uid,
+                    nickname: nicknameInicial,
+                    puntos: 0,
+                    puntos_grupos: 0,
+                    puntos_32avos: 0,
+                    puntos_16avos: 0,
+                    puntos_cuartos: 0,
+                    puntos_semis: 0,
+                    puntos_final: 0,
+                    email: user.email || '',
+                    photoURL: user.photoURL || '',
+                    provider: user.providerData?.[0]?.providerId || 'email',
+                    activo: true,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                await setDoc(userRef, nuevoUsuario, { merge: true });
+                return { data: nuevoUsuario, created: true };
+            }
+
+            const userData = docSnap.data() || {};
+            const updateData = {
+                uid: userData.uid || user.uid,
+                email: userData.email || user.email || '',
+                photoURL: user.photoURL || userData.photoURL || '',
+                provider: user.providerData?.[0]?.providerId || userData.provider || 'email',
+                updatedAt: new Date().toISOString()
+            };
+
+            if (!String(userData.nickname || userData.apodo || '').trim()) {
+                updateData.nickname = String(user.displayName || emailName || 'Competidor').trim();
+            }
+
+            await setDoc(userRef, updateData, { merge: true });
+            return { data: { ...userData, ...updateData }, created: false };
+        }
+
         async function registrarOShow(user) {
             currentUser = user;
 
@@ -283,17 +335,8 @@
                     return;
                 }
 
-                const userRef = doc(db, "usuarios", user.uid);
-                const docSnap = await getDoc(userRef);
-
-                if(!docSnap.exists()) {
-                    setWelcomeNickname(user.displayName || user.email?.split('@')[0] || '');
-                    showDashboard();
-                    showNicknameModal(user);
-                    return;
-                }
-
-                const userData = docSnap.data() || {};
+                const resultadoUsuario = await asegurarDocumentoUsuario(user);
+                const userData = resultadoUsuario?.data || {};
 
                 // Doble validación por si prefieres bloquear dentro del documento del usuario.
                 if (userData.bloqueado === true || userData.blocked === true || userData.activo === false) {
@@ -301,14 +344,19 @@
                     return;
                 }
 
-                setWelcomeNickname(userData.nickname || user.displayName || user.email?.split('@')[0] || '');
+                const nombreMostrar = obtenerNombreUsuario(user, userData);
+                setWelcomeNickname(nombreMostrar);
                 showDashboard();
+
+                // Si es usuario nuevo de Google, ya existe en usuarios/{uid}; solo le damos oportunidad de ajustar apodo.
+                const esGoogle = user.providerData?.some(p => p.providerId === 'google.com');
+                if (resultadoUsuario?.created && esGoogle) {
+                    showNicknameModal(user);
+                }
             } catch (err) {
-                console.error('Sesión iniciada, pero no se pudo validar completamente el acceso en Firestore:', err);
-                // No mostramos este error al usuario activo para no confundirlo. Si Firestore tiene un problema real,
-                // se verá en consola y las reglas se pueden ajustar sin bloquear la experiencia.
-                setWelcomeNickname(currentNickname || user.displayName || '');
-                showDashboard();
+                console.error('No se pudo completar el registro/validación del usuario en Firestore:', err);
+                showToast('No se pudo preparar tu usuario. Revisa permisos de Firebase e intenta nuevamente.', 'error');
+                await signOut(auth).catch(() => {});
             }
         }
 
@@ -580,9 +628,11 @@
             const acumulados = new Map();
 
             rankingState.usuarios.forEach(u => {
-                acumulados.set(u.uid, {
-                    uid: u.uid,
-                    nickname: u.nickname || u.email?.split('@')[0] || 'Competidor',
+                const uidUsuario = u.uid || u.id;
+                if (!uidUsuario) return;
+                acumulados.set(uidUsuario, {
+                    uid: uidUsuario,
+                    nickname: u.nickname || u.apodo || u.email?.split('@')[0] || 'Competidor',
                     general: 0,
                     grupos: 0,
                     '32avos': 0,
