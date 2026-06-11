@@ -38,15 +38,15 @@
         // ==========================================
         // CONFIGURACIÓN DE FIREBASE
         // ==========================================
-        const firebaseConfig = {
-            apiKey: "TU_API_KEY",
-            authDomain: "TU_PROYECTO.firebaseapp.com",
-            projectId: "TU_PROYECTO",
-            storageBucket: "TU_PROYECTO.appspot.com",
-            messagingSenderId: "TU_ID",
-            appId: "TU_APP_ID"
-        };
-
+       const firebaseConfig = {
+  apiKey: "AIzaSyDadHGwMzhPNwGQQIzmiiIX8tD3UFE1wII",
+  authDomain: "quiniela-mundial2026-919e3.firebaseapp.com",
+  projectId: "quiniela-mundial2026-919e3",
+  storageBucket: "quiniela-mundial2026-919e3.firebasestorage.app",
+  messagingSenderId: "296795666639",
+  appId: "1:296795666639:web:0cb94bc7d711b536a51fba",
+  measurementId: "G-DZ4BNVZNHB"
+};
         const app = initializeApp(firebaseConfig);
         const calendarioPartidos = window['partidos' + String.fromCharCode(77) + 'undial'] || [];
         const auth = getAuth(app);
