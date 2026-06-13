@@ -138,7 +138,7 @@ async function getFixtureById(id, usageRef) {
   if (!id) return null;
 
  // const query = `/fixtures?id=${encodeURIComponent(id)}`;
-  const query = `/fixtures?date=2026-06-12`;
+  const query = `/fixtures?team=2384&season=2026`;
   
   console.log(`Consultando API-Football por ID: ${query}`);
 
