@@ -336,12 +336,12 @@ async function main() {
      // if (expectedFixtureId && Number(item?.fixture?.id) === Number(expectedFixtureId)) return true;
       //return matchFixtureToPartido(item, partido, aliases);
     //});
-/*    const expectedFixtureId =
+    const expectedFixtureId =
   actual.apiFixtureId ||
   partido.apiFixtureId ||
   partido.fixtureId ||
   null;
-
+/*
 // Primero buscar por fixture ID
 let fx = null;
 
