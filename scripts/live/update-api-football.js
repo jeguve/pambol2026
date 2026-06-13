@@ -255,6 +255,9 @@ async function writeLiveResult(db, partido, data) {
   }
   await db.collection('partidos_en_vivo').doc(partido.id).set(data, { merge: true });
 }
+console.log('LEAGUE_ID=', LEAGUE_ID);
+console.log('SEASON=', SEASON);
+console.log('API_TIMEZONE=', API_TIMEZONE);
 
 async function main() {
   const now = new Date();
