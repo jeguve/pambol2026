@@ -25,6 +25,7 @@ const API_KEY = process.env.APIFOOTBALL_KEY;
 const FIREBASE_SERVICE_ACCOUNT = process.env.FIREBASE_SERVICE_ACCOUNT;
 const LEAGUE_ID = process.env.APIFOOTBALL_LEAGUE_ID;
 const SEASON = process.env.APIFOOTBALL_SEASON || '2026';
+const API_TIMEZONE = process.env.APIFOOTBALL_TIMEZONE || 'America/Mexico_City';
 const DRY_RUN = String(process.env.DRY_RUN || '').toLowerCase() === 'true';
 
 const DAILY_API_LIMIT = Number(process.env.DAILY_API_LIMIT || 95);
@@ -77,6 +78,19 @@ function sameTeam(calendarName, apiName, aliases) {
 
 function yyyyMmDd(date) {
   return date.toISOString().slice(0, 10);
+}
+
+function yyyyMmDdInTimezone(date, timeZone = API_TIMEZONE) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date).reduce((acc, p) => {
+    if (p.type !== 'literal') acc[p.type] = p.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function parseServiceAccount() {
@@ -167,11 +181,32 @@ function fixtureDate(fx) {
   return d && !Number.isNaN(d.getTime()) ? d : null;
 }
 
-function matchFixtureToPartido(fx, partido, aliases) {
+function partidoApiLocal(partido) {
+  return partido?.localApi || partido?.apiLocal || partido?.local;
+}
+
+function partidoApiVisit(partido) {
+  return partido?.visitApi || partido?.apiVisit || partido?.visit;
+}
+
+function fixtureOrientation(fx, partido, aliases) {
   const home = fx?.teams?.home?.name || '';
   const away = fx?.teams?.away?.name || '';
-  const teamsOk = sameTeam(partido.local, home, aliases) && sameTeam(partido.visit, away, aliases);
-  if (!teamsOk) return false;
+  const localApi = partidoApiLocal(partido);
+  const visitApi = partidoApiVisit(partido);
+
+  const direct = sameTeam(localApi, home, aliases) && sameTeam(visitApi, away, aliases);
+  if (direct) return 'direct';
+
+  const reversed = sameTeam(localApi, away, aliases) && sameTeam(visitApi, home, aliases);
+  if (reversed) return 'reversed';
+
+  return null;
+}
+
+function matchFixtureToPartido(fx, partido, aliases) {
+  const orientation = fixtureOrientation(fx, partido, aliases);
+  if (!orientation) return false;
 
   const apiDate = fixtureDate(fx);
   const localDate = new Date(partido.hora);
@@ -182,18 +217,21 @@ function matchFixtureToPartido(fx, partido, aliases) {
   return true;
 }
 
-function fixtureToFirestore(fx, partido, matchedBy = 'league-date') {
+function fixtureToFirestore(fx, partido, matchedBy = 'league-date', orientation = 'direct') {
   const status = fixtureStatus(fx) || 'NS';
   const goalsHome = fx?.goals?.home;
   const goalsAway = fx?.goals?.away;
   const scoreHome = fx?.score?.fulltime?.home ?? goalsHome;
   const scoreAway = fx?.score?.fulltime?.away ?? goalsAway;
 
+  const golesL = orientation === 'reversed' ? scoreAway : scoreHome;
+  const golesV = orientation === 'reversed' ? scoreHome : scoreAway;
+
   return {
     matchId: partido.id,
     apiFixtureId: fx?.fixture?.id || null,
-    golesL: scoreHome ?? null,
-    golesV: scoreAway ?? null,
+    golesL: golesL ?? null,
+    golesV: golesV ?? null,
     status,
     estado: status,
     shortStatus: status,
@@ -204,6 +242,7 @@ function fixtureToFirestore(fx, partido, matchedBy = 'league-date') {
     apiLeagueName: fx?.league?.name || null,
     apiSeason: fx?.league?.season || null,
     apiFixtureDate: fx?.fixture?.date || null,
+    apiOrientation: orientation,
     apiMatchedBy: matchedBy,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   };
@@ -245,7 +284,7 @@ async function main() {
     return;
   }
 
-  const fechas = Array.from(new Set(candidatos.map(p => yyyyMmDd(new Date(p.hora)))));
+  const fechas = Array.from(new Set(candidatos.map(p => yyyyMmDdInTimezone(new Date(p.hora), API_TIMEZONE))));
   const fixturesPorFecha = new Map();
 
   for (const date of fechas) {
@@ -255,7 +294,7 @@ async function main() {
       break;
     }
 
-    const query = `/fixtures?league=${encodeURIComponent(LEAGUE_ID)}&season=${encodeURIComponent(SEASON)}&date=${encodeURIComponent(date)}`;
+    const query = `/fixtures?league=${encodeURIComponent(LEAGUE_ID)}&season=${encodeURIComponent(SEASON)}&date=${encodeURIComponent(date)}&timezone=${encodeURIComponent(API_TIMEZONE)}`;
     console.log(`Consultando API-Football: ${query}`);
     const json = await apiFootballGet(query);
     await incrementApiUsage(currentUsage.ref, 1);
@@ -266,10 +305,11 @@ async function main() {
     const actual = existing.get(partido.id) || {};
     if (isFinalStatus(actual.status || actual.estado || actual.shortStatus)) continue;
 
-    const date = yyyyMmDd(new Date(partido.hora));
+    const date = yyyyMmDdInTimezone(new Date(partido.hora), API_TIMEZONE);
     const fixtures = fixturesPorFecha.get(date) || [];
+    const expectedFixtureId = actual.apiFixtureId || partido.apiFixtureId || partido.fixtureId || null;
     const fx = fixtures.find(item => {
-      if (actual.apiFixtureId && item?.fixture?.id === actual.apiFixtureId) return true;
+      if (expectedFixtureId && Number(item?.fixture?.id) === Number(expectedFixtureId)) return true;
       return matchFixtureToPartido(item, partido, aliases);
     });
 
@@ -290,7 +330,9 @@ async function main() {
     }
 
     const status = fixtureStatus(fx);
-    const data = fixtureToFirestore(fx, partido, actual.apiFixtureId ? 'apiFixtureId' : 'league-date-team-time');
+    const orientation = fixtureOrientation(fx, partido, aliases) || 'direct';
+    const matchedBy = expectedFixtureId ? 'apiFixtureId' : 'league-date-team-time';
+    const data = fixtureToFirestore(fx, partido, matchedBy, orientation);
     data.apiPrecheckDone = true;
 
     // Si está por iniciar y aún no hay marcador, guardamos metadata pero no damos puntos por status NS.
