@@ -7,8 +7,10 @@
   - Si no hay partidos cerca/en vivo: 0 llamadas API.
   - Antes del partido: solo hace una preconsulta desde 20 min antes para resolver/marcar fixture.
   - Desde la hora de inicio hasta FT: consulta cada ejecución (~5 min).
+  - Mantiene una ventana de recuperación de 6 horas después del inicio para corregir partidos que no pudieron actualizarse durante el juego.
   - Al detectar FT/AET/PEN: guarda resultado final y deja de consultar ese partido.
   - Consulta por liga+temporada+fecha para traer todos los partidos del día en 1 request por ejecución activa.
+  - Si el partido tiene apiFixtureId real de API-Football, consulta primero por /fixtures?id=...
 */
 
 const fs = require('fs');
@@ -30,10 +32,64 @@ const DRY_RUN = String(process.env.DRY_RUN || '').toLowerCase() === 'true';
 
 const DAILY_API_LIMIT = Number(process.env.DAILY_API_LIMIT || 95);
 const PRECHECK_MINUTES_BEFORE = Number(process.env.PRECHECK_MINUTES_BEFORE || 20);
-const MAX_MINUTES_AFTER_START = Number(process.env.MAX_MINUTES_AFTER_START || 150);
+const MAX_MINUTES_AFTER_START = Number(process.env.MAX_MINUTES_AFTER_START || 360);
 
 const FINAL_STATUSES = new Set(['FT', 'AET', 'PEN']);
 const LIVE_STATUSES = new Set(['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'IN_PLAY']);
+
+// Aliases mínimos internos para evitar fallas cuando el nombre visible está en español.
+const DEFAULT_ALIASES = {
+  'Estados Unidos': ['United States', 'USA', 'United States of America', 'USMNT'],
+  'United States': ['Estados Unidos', 'USA', 'United States of America', 'USMNT'],
+  'USA': ['United States', 'Estados Unidos', 'United States of America', 'USMNT'],
+  'Corea del Sur': ['South Korea', 'Korea Republic', 'Korea Rep.', 'Republic of Korea'],
+  'Chequia': ['Czechia', 'Czech Republic'],
+  'Bosnia': ['Bosnia and Herzegovina', 'Bosnia-Herzegovina'],
+  'Catar': ['Qatar'],
+  'Países Bajos': ['Netherlands', 'Holland'],
+  'C. de Marfil': ['Ivory Coast', "Côte d'Ivoire", 'Cote d Ivoire'],
+  'N. Zelanda': ['New Zealand'],
+  'Arabia Saudita': ['Saudi Arabia'],
+  'R.D. Congo': ['DR Congo', 'Congo DR', 'Democratic Republic of the Congo'],
+  'Inglaterra': ['England'],
+  'Escocia': ['Scotland'],
+  'Marruecos': ['Morocco'],
+  'Alemania': ['Germany'],
+  'España': ['Spain'],
+  'Francia': ['France'],
+  'Japón': ['Japan'],
+  'Suecia': ['Sweden'],
+  'Túnez': ['Tunisia'],
+  'Bélgica': ['Belgium'],
+  'Egipto': ['Egypt'],
+  'Irán': ['Iran'],
+  'Noruega': ['Norway'],
+  'Argentina': ['Argentina'],
+  'Argelia': ['Algeria'],
+  'Austria': ['Austria'],
+  'Jordania': ['Jordan'],
+  'Portugal': ['Portugal'],
+  'Uzbekistán': ['Uzbekistan'],
+  'Colombia': ['Colombia'],
+  'Croacia': ['Croatia'],
+  'Ghana': ['Ghana'],
+  'Panamá': ['Panama'],
+  'México': ['Mexico'],
+  'Sudáfrica': ['South Africa'],
+  'Canadá': ['Canada'],
+  'Suiza': ['Switzerland'],
+  'Brasil': ['Brazil'],
+  'Haití': ['Haiti'],
+  'Paraguay': ['Paraguay'],
+  'Australia': ['Australia'],
+  'Turquía': ['Turkey', 'Türkiye'],
+  'Curazao': ['Curacao', 'Curaçao'],
+  'Ecuador': ['Ecuador'],
+  'Cabo Verde': ['Cape Verde'],
+  'Uruguay': ['Uruguay'],
+  'Senegal': ['Senegal'],
+  'Irak': ['Iraq']
+};
 
 function loadPartidos() {
   const code = fs.readFileSync(PARTIDOS_JS, 'utf8');
@@ -56,9 +112,21 @@ function normalizeName(value) {
     .trim();
 }
 
+function mergeAliases(base, extra) {
+  const out = { ...base };
+  Object.entries(extra || {}).forEach(([key, values]) => {
+    const list = Array.isArray(values) ? values : [values];
+    out[key] = Array.from(new Set([...(out[key] || []), ...list].filter(Boolean)));
+  });
+  return out;
+}
+
 function loadAliases() {
-  if (!fs.existsSync(ALIASES_JSON)) return {};
-  return JSON.parse(fs.readFileSync(ALIASES_JSON, 'utf8'));
+  let fileAliases = {};
+  if (fs.existsSync(ALIASES_JSON)) {
+    fileAliases = JSON.parse(fs.readFileSync(ALIASES_JSON, 'utf8'));
+  }
+  return mergeAliases(DEFAULT_ALIASES, fileAliases);
 }
 
 function candidateNames(name, aliases) {
@@ -80,6 +148,12 @@ function yyyyMmDd(date) {
   return date.toISOString().slice(0, 10);
 }
 
+function addDays(date, days) {
+  const d = new Date(date.getTime());
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
 function yyyyMmDdInTimezone(date, timeZone = API_TIMEZONE) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,
@@ -91,6 +165,17 @@ function yyyyMmDdInTimezone(date, timeZone = API_TIMEZONE) {
     return acc;
   }, {});
   return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function fechasConsultaParaPartido(partido) {
+  const inicio = new Date(partido.hora);
+  if (Number.isNaN(inicio.getTime())) return [];
+  // Incluye día anterior y siguiente para cubrir cambios por zona horaria/API.
+  return Array.from(new Set([
+    yyyyMmDdInTimezone(addDays(inicio, -1), API_TIMEZONE),
+    yyyyMmDdInTimezone(inicio, API_TIMEZONE),
+    yyyyMmDdInTimezone(addDays(inicio, 1), API_TIMEZONE)
+  ]));
 }
 
 function parseServiceAccount() {
@@ -133,20 +218,6 @@ async function apiFootballGet(pathAndQuery) {
     throw new Error(`API-Football HTTP ${res.status}: ${JSON.stringify(json).slice(0, 500)}`);
   }
   return json;
-}
-async function getFixtureById(id, usageRef) {
-  if (!id) return null;
-
- // const query = `/fixtures?id=${encodeURIComponent(id)}`;
-  const query = `/fixtures?team=2384&season=2026`;
-  
-  console.log(`Consultando API-Football por ID: ${query}`);
-
-  const json = await apiFootballGet(query);
-  await incrementApiUsage(usageRef, 1);
-
-  const items = Array.isArray(json.response) ? json.response : [];
-  return items[0] || null;
 }
 
 async function readExistingResults(db) {
@@ -226,7 +297,7 @@ function matchFixtureToPartido(fx, partido, aliases) {
   const localDate = new Date(partido.hora);
   if (apiDate && !Number.isNaN(localDate.getTime())) {
     const diffHours = Math.abs(apiDate.getTime() - localDate.getTime()) / 36e5;
-    return diffHours <= 4;
+    return diffHours <= 6;
   }
   return true;
 }
@@ -269,9 +340,18 @@ async function writeLiveResult(db, partido, data) {
   }
   await db.collection('partidos_en_vivo').doc(partido.id).set(data, { merge: true });
 }
-console.log('LEAGUE_ID=', LEAGUE_ID);
-console.log('SEASON=', SEASON);
-console.log('API_TIMEZONE=', API_TIMEZONE);
+
+async function fetchFixtureById(db, usage, fixtureId) {
+  const latestUsage = await getApiUsage(db, yyyyMmDd(new Date()));
+  if (latestUsage.count >= DAILY_API_LIMIT) return null;
+
+  const query = `/fixtures?id=${encodeURIComponent(fixtureId)}&timezone=${encodeURIComponent(API_TIMEZONE)}`;
+  console.log(`Consultando API-Football por fixtureId: ${query}`);
+  const json = await apiFootballGet(query);
+  await incrementApiUsage(latestUsage.ref, 1);
+  const list = Array.isArray(json.response) ? json.response : [];
+  return list[0] || null;
+}
 
 async function main() {
   const now = new Date();
@@ -301,7 +381,24 @@ async function main() {
     return;
   }
 
-  const fechas = Array.from(new Set(candidatos.map(p => yyyyMmDdInTimezone(new Date(p.hora), API_TIMEZONE))));
+  // Primero intentamos resolver por apiFixtureId real, si existe.
+  // Nota: apiFixtureId debe ser el ID real de API-Football, no el ID de otro proveedor.
+  const resolvedById = new Map();
+
+  for (const partido of candidatos) {
+    const actual = existing.get(partido.id) || {};
+    const expectedFixtureId = actual.apiFixtureId || partido.apiFixtureId || partido.fixtureId || null;
+    if (!expectedFixtureId || isFinalStatus(actual.status || actual.estado || actual.shortStatus)) continue;
+
+    const fx = await fetchFixtureById(db, usage, expectedFixtureId);
+    if (fx) {
+      resolvedById.set(partido.id, fx);
+    } else {
+      console.log(`apiFixtureId no devolvió fixture para ${partido.id}: ${expectedFixtureId}. Se intentará por fecha/equipos.`);
+    }
+  }
+
+  const fechas = Array.from(new Set(candidatos.flatMap(p => fechasConsultaParaPartido(p))));
   const fixturesPorFecha = new Map();
 
   for (const date of fechas) {
@@ -315,66 +412,33 @@ async function main() {
     console.log(`Consultando API-Football: ${query}`);
     const json = await apiFootballGet(query);
     await incrementApiUsage(currentUsage.ref, 1);
-    fixturesPorFecha.set(date, Array.isArray(json.response) ? json.response : []);
-    console.log(
-  'Fixtures recibidos:',
-  (json.response || []).map(f => ({
-    id: f.fixture?.id,
-    home: f.teams?.home?.name,
-    away: f.teams?.away?.name,
-    status: f.fixture?.status?.short
-  }))
-);
+    const list = Array.isArray(json.response) ? json.response : [];
+    console.log(`API-Football devolvió ${list.length} fixture(s) para ${date}.`);
+    if (list.length) {
+      console.log('Fixtures recibidos:', list.map(f => `${f.fixture?.id || '?'} ${f.teams?.home?.name || '?'} vs ${f.teams?.away?.name || '?'} (${f.fixture?.status?.short || '?'})`).join(' | '));
+    }
+    fixturesPorFecha.set(date, list);
   }
 
   for (const partido of candidatos) {
     const actual = existing.get(partido.id) || {};
     if (isFinalStatus(actual.status || actual.estado || actual.shortStatus)) continue;
 
-    const date = yyyyMmDdInTimezone(new Date(partido.hora), API_TIMEZONE);
-    const fixtures = fixturesPorFecha.get(date) || [];
-   // const expectedFixtureId = actual.apiFixtureId || partido.apiFixtureId || partido.fixtureId || null;
-    //const fx = fixtures.find(item => {
-     // if (expectedFixtureId && Number(item?.fixture?.id) === Number(expectedFixtureId)) return true;
-      //return matchFixtureToPartido(item, partido, aliases);
-    //});
-    const expectedFixtureId =
-  actual.apiFixtureId ||
-  partido.apiFixtureId ||
-  partido.fixtureId ||
-  null;
-/*
-// Primero buscar por fixture ID
-let fx = null;
+    const expectedFixtureId = actual.apiFixtureId || partido.apiFixtureId || partido.fixtureId || null;
 
-if (expectedFixtureId) {
-  fx = fixtures.find(
-    item => Number(item?.fixture?.id) === Number(expectedFixtureId)
-  );
-}
+    let fx = resolvedById.get(partido.id) || null;
+    let matchedBy = fx ? 'apiFixtureId' : 'league-date-team-time';
 
-// Si no lo encontró, intentar por nombres
-if (!fx) {
-  fx = fixtures.find(item =>
-    matchFixtureToPartido(item, partido, aliases)
-  );
-}
-*/
-    let fx = null;
+    if (!fx) {
+      const fechasPartido = fechasConsultaParaPartido(partido);
+      const fixtures = fechasPartido.flatMap(date => fixturesPorFecha.get(date) || []);
 
-if (expectedFixtureId) {
-  const currentUsage = await getApiUsage(db, todayKey);
+      fx = fixtures.find(item => {
+        if (expectedFixtureId && Number(item?.fixture?.id) === Number(expectedFixtureId)) return true;
+        return matchFixtureToPartido(item, partido, aliases);
+      }) || null;
+    }
 
-  if (currentUsage.count < DAILY_API_LIMIT) {
-    fx = await getFixtureById(expectedFixtureId, currentUsage.ref);
-  } else {
-    console.log(`Límite interno alcanzado. No se consulta fixture ID ${expectedFixtureId}.`);
-  }
-}
-
-if (!fx) {
-  fx = fixtures.find(item => matchFixtureToPartido(item, partido, aliases));
-}
     if (!fx) {
       // Marcamos precheck para no gastar requests repetidos antes del inicio si la API todavía no publica el fixture.
       if (shouldPrecheck(now, partido, actual)) {
@@ -388,12 +452,13 @@ if (!fx) {
         });
       }
       console.log(`No se encontró fixture para ${partido.id}: ${partido.local} vs ${partido.visit}`);
+      console.log(`Nombres API esperados: ${partidoApiLocal(partido)} vs ${partidoApiVisit(partido)} | apiFixtureId: ${expectedFixtureId || 'sin ID'}`);
       continue;
     }
 
     const status = fixtureStatus(fx);
     const orientation = fixtureOrientation(fx, partido, aliases) || 'direct';
-    const matchedBy = expectedFixtureId ? 'apiFixtureId' : 'league-date-team-time';
+    if (expectedFixtureId && Number(fx?.fixture?.id) === Number(expectedFixtureId)) matchedBy = 'apiFixtureId';
     const data = fixtureToFirestore(fx, partido, matchedBy, orientation);
     data.apiPrecheckDone = true;
 
