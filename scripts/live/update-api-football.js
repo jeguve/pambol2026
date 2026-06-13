@@ -134,6 +134,18 @@ async function apiFootballGet(pathAndQuery) {
   }
   return json;
 }
+async function getFixtureById(id, usageRef) {
+  if (!id) return null;
+
+  const query = `/fixtures?id=${encodeURIComponent(id)}`;
+  console.log(`Consultando API-Football por ID: ${query}`);
+
+  const json = await apiFootballGet(query);
+  await incrementApiUsage(usageRef, 1);
+
+  const items = Array.isArray(json.response) ? json.response : [];
+  return items[0] || null;
+}
 
 async function readExistingResults(db) {
   const snap = await db.collection('partidos_en_vivo').get();
@@ -324,7 +336,7 @@ async function main() {
      // if (expectedFixtureId && Number(item?.fixture?.id) === Number(expectedFixtureId)) return true;
       //return matchFixtureToPartido(item, partido, aliases);
     //});
-    const expectedFixtureId =
+/*    const expectedFixtureId =
   actual.apiFixtureId ||
   partido.apiFixtureId ||
   partido.fixtureId ||
@@ -345,7 +357,22 @@ if (!fx) {
     matchFixtureToPartido(item, partido, aliases)
   );
 }
+*/
+    let fx = null;
 
+if (expectedFixtureId) {
+  const currentUsage = await getApiUsage(db, todayKey);
+
+  if (currentUsage.count < DAILY_API_LIMIT) {
+    fx = await getFixtureById(expectedFixtureId, currentUsage.ref);
+  } else {
+    console.log(`Límite interno alcanzado. No se consulta fixture ID ${expectedFixtureId}.`);
+  }
+}
+
+if (!fx) {
+  fx = fixtures.find(item => matchFixtureToPartido(item, partido, aliases));
+}
     if (!fx) {
       // Marcamos precheck para no gastar requests repetidos antes del inicio si la API todavía no publica el fixture.
       if (shouldPrecheck(now, partido, actual)) {
