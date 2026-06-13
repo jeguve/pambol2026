@@ -450,6 +450,7 @@
                 renderMatches();
                 loadUserPredictions();
                 renderLiveSection(resultadosOficiales);
+                renderGroupStandings(resultadosOficiales);
             }, (err) => {
                 console.error('No se pudo escuchar partidos_en_vivo:', err);
                 renderMatches();
@@ -685,11 +686,17 @@
 
             const items = Object.keys(resultados)
                 .map(id => ({ id, data: resultados[id], match: calendarioPartidos.find(m => m.id === id) }))
+                .filter(({ data }) => String(data.status || data.estado || data.shortStatus || '').trim().toUpperCase() !== 'FT')
                 .sort((a, b) => {
                     const fa = a.match ? new Date(a.match.hora).getTime() : 0;
                     const fb = b.match ? new Date(b.match.hora).getTime() : 0;
                     return fa - fb || String(a.id).localeCompare(String(b.id), 'es', { numeric: true });
                 });
+
+            if (!items.length) {
+                container.innerHTML = "<div class='text-center py-16 text-slate-500 bg-white/70 rounded-2xl border border-slate-200 border-dashed'><i class='fas fa-check-circle fa-2x mb-3 text-emerald-500'></i><p class='text-sm font-bold uppercase tracking-wider'>No hay partidos activos por ahora.</p><p class='text-xs mt-1 text-slate-400'>Los partidos finalizados se ocultan de esta vista y siguen contando para el ranking.</p></div>";
+                return;
+            }
 
             container.innerHTML = items.map(({ id, data: d, match }) => {
                 const localFinal = match ? (match.localCalculado || match.local) : 'Equipo local';
@@ -740,7 +747,174 @@
             }).join('');
         }
 
-        let rankingFaseActiva = 'general';
+        
+        function renderGroupStandings(resultados) {
+            const container = document.getElementById('groups-standings-container');
+            if (!container) return;
+
+            const grupos = {};
+            const equiposKey = (nombre) => String(nombre || '').trim().toLowerCase();
+
+            calendarioPartidos
+                .filter(p => p.fase === 'grupos' && p.grupo)
+                .forEach(p => {
+                    const grupo = String(p.grupo).trim().toUpperCase();
+                    if (!grupos[grupo]) grupos[grupo] = new Map();
+
+                    [
+                        { nombre: p.localCalculado || p.local, flag: p.localFlagCalculado || p.localFlag },
+                        { nombre: p.visitCalculado || p.visit, flag: p.visitFlagCalculado || p.visitFlag }
+                    ].forEach(eq => {
+                        const key = equiposKey(eq.nombre);
+                        if (!key) return;
+                        if (!grupos[grupo].has(key)) {
+                            grupos[grupo].set(key, {
+                                nombre: eq.nombre,
+                                flag: eq.flag,
+                                pj: 0,
+                                g: 0,
+                                e: 0,
+                                p: 0,
+                                pts: 0,
+                                gf: 0,
+                                gc: 0,
+                                dg: 0
+                            });
+                        }
+                    });
+                });
+
+            Object.keys(resultados || {}).forEach(id => {
+                const partido = calendarioPartidos.find(p => p.id === id && p.fase === 'grupos' && p.grupo);
+                const resultado = resultados[id];
+                if (!partido || !resultado) return;
+
+                const status = String(resultado.status || resultado.estado || resultado.shortStatus || '').trim().toUpperCase();
+                if (status !== 'FT') return;
+
+                const golesL = Number(resultado.golesL ?? resultado.homeGoals ?? resultado.local);
+                const golesV = Number(resultado.golesV ?? resultado.awayGoals ?? resultado.visitante);
+                if (!Number.isFinite(golesL) || !Number.isFinite(golesV)) return;
+
+                const grupo = String(partido.grupo).trim().toUpperCase();
+                if (!grupos[grupo]) grupos[grupo] = new Map();
+
+                const localNombre = partido.localCalculado || partido.local;
+                const visitNombre = partido.visitCalculado || partido.visit;
+                const localKey = equiposKey(localNombre);
+                const visitKey = equiposKey(visitNombre);
+
+                if (!grupos[grupo].has(localKey)) {
+                    grupos[grupo].set(localKey, { nombre: localNombre, flag: partido.localFlagCalculado || partido.localFlag, pj: 0, g: 0, e: 0, p: 0, pts: 0, gf: 0, gc: 0, dg: 0 });
+                }
+                if (!grupos[grupo].has(visitKey)) {
+                    grupos[grupo].set(visitKey, { nombre: visitNombre, flag: partido.visitFlagCalculado || partido.visitFlag, pj: 0, g: 0, e: 0, p: 0, pts: 0, gf: 0, gc: 0, dg: 0 });
+                }
+
+                const local = grupos[grupo].get(localKey);
+                const visita = grupos[grupo].get(visitKey);
+
+                local.pj += 1;
+                visita.pj += 1;
+                local.gf += golesL;
+                local.gc += golesV;
+                visita.gf += golesV;
+                visita.gc += golesL;
+
+                if (golesL > golesV) {
+                    local.g += 1;
+                    local.pts += 3;
+                    visita.p += 1;
+                } else if (golesL < golesV) {
+                    visita.g += 1;
+                    visita.pts += 3;
+                    local.p += 1;
+                } else {
+                    local.e += 1;
+                    visita.e += 1;
+                    local.pts += 1;
+                    visita.pts += 1;
+                }
+
+                local.dg = local.gf - local.gc;
+                visita.dg = visita.gf - visita.gc;
+            });
+
+            const gruposOrdenados = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+            if (!gruposOrdenados.length) {
+                container.innerHTML = "<div class='text-center py-16 text-slate-500 bg-white/70 rounded-2xl border border-slate-200 border-dashed'><i class='fas fa-table fa-2x mb-3 text-slate-500'></i><p class='text-sm font-bold uppercase tracking-wider'>Aún no hay grupos para mostrar.</p></div>";
+                return;
+            }
+
+            const algunFinalizado = Object.values(resultados || {}).some(r => String(r.status || r.estado || r.shortStatus || '').trim().toUpperCase() === 'FT');
+
+            container.innerHTML = `
+                ${!algunFinalizado ? `<div class="text-center py-5 text-slate-500 bg-white/70 rounded-2xl border border-slate-200 border-dashed mb-4">
+                    <p class="text-xs font-bold uppercase tracking-wider">Las tablas se actualizarán cuando marques partidos con status FT.</p>
+                </div>` : ''}
+                ${gruposOrdenados.map(grupo => {
+                    const filas = Array.from(grupos[grupo].values())
+                        .map(eq => ({ ...eq, dg: eq.gf - eq.gc }))
+                        .sort((a, b) => {
+                            const difPts = b.pts - a.pts;
+                            if (difPts !== 0) return difPts;
+                            const difDg = b.dg - a.dg;
+                            if (difDg !== 0) return difDg;
+                            const difGf = b.gf - a.gf;
+                            if (difGf !== 0) return difGf;
+                            return a.nombre.localeCompare(b.nombre, 'es');
+                        });
+
+                    return `
+                    <div class="bg-white/86 backdrop-blur-sm rounded-2xl border border-white/70 overflow-hidden shadow-md mb-4 group-table-card">
+                        <div class="bg-sky-50/80 border-b border-slate-100 px-4 py-3">
+                            <h3 class="text-sm font-black uppercase tracking-widest text-slate-700">Grupo ${grupo}</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[620px] text-left border-collapse">
+                                <thead class="bg-white/70 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th class="p-3 w-10 text-center">#</th>
+                                        <th class="p-3">Equipo</th>
+                                        <th class="p-3 text-center">PJ</th>
+                                        <th class="p-3 text-center">G</th>
+                                        <th class="p-3 text-center">E</th>
+                                        <th class="p-3 text-center">P</th>
+                                        <th class="p-3 text-center">GF</th>
+                                        <th class="p-3 text-center">GC</th>
+                                        <th class="p-3 text-center">DG</th>
+                                        <th class="p-3 text-center">PTS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${filas.map((eq, index) => `
+                                        <tr class="border-t border-slate-100 text-sm hover:bg-sky-50/70 transition">
+                                            <td class="p-3 text-center font-black text-slate-500">${index + 1}</td>
+                                            <td class="p-3 font-bold text-slate-700">
+                                                <div class="flex items-center gap-2 min-w-0">
+                                                    <img src="${imgBandera(eq.flag)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white flex-none" alt="">
+                                                    <span class="truncate">${eq.nombre}</span>
+                                                </div>
+                                            </td>
+                                            <td class="p-3 text-center font-bold text-slate-600">${eq.pj}</td>
+                                            <td class="p-3 text-center font-bold text-slate-600">${eq.g}</td>
+                                            <td class="p-3 text-center font-bold text-slate-600">${eq.e}</td>
+                                            <td class="p-3 text-center font-bold text-slate-600">${eq.p}</td>
+                                            <td class="p-3 text-center font-bold text-slate-600">${eq.gf}</td>
+                                            <td class="p-3 text-center font-bold text-slate-600">${eq.gc}</td>
+                                            <td class="p-3 text-center font-bold ${eq.dg > 0 ? 'text-emerald-600' : eq.dg < 0 ? 'text-rose-600' : 'text-slate-600'}">${eq.dg}</td>
+                                            <td class="p-3 text-center font-black text-sky-600">${eq.pts}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>`;
+                }).join('')}
+            `;
+        }
+
+let rankingFaseActiva = 'general';
         let rankingListenersStarted = false;
         const rankingState = {
             usuarios: [],
@@ -1062,6 +1236,7 @@
         .card-animate,
         .hero-panel,
         .live-card,
+        .group-table-card,
         #sec-ranking > div:last-child,
         #sec-ranking .rank-fase-btn,
         #phase-menu,
@@ -1073,7 +1248,7 @@
             border-width: 2pt !important;
             border-color: #94a3b8 !important;
         }
-        .card-animate, .live-card, #sec-ranking > div:last-child { background-color: rgba(241,245,249,.94) !important; }
+        .card-animate, .live-card, .group-table-card, #sec-ranking > div:last-child { background-color: rgba(241,245,249,.94) !important; }
         .hero-panel { background:linear-gradient(135deg, rgba(236,253,245,.76), rgba(240,249,255,.76), rgba(255,255,255,.70)) !important; }
         #welcome-label { display:flex; align-items:center; gap:.25rem; min-width:0; max-width:46%; line-height:1.05; }
         #welcome-label .welcome-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -1176,6 +1351,7 @@
                     <div class="flex rounded-xl bg-white/25 backdrop-blur-sm p-1 border border-slate-300/70 text-[11px] w-full sm:w-auto">
                         <button id="nav-p" onclick="showTab('sec-pronosticos', 'nav-p')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg bg-sky-500 text-white transition-all duration-200">Jugar</button>
                         <button id="nav-v" onclick="showTab('sec-vivo', 'nav-v')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">En Vivo</button>
+                        <button id="nav-g" onclick="showTab('sec-grupos', 'nav-g')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">Grupos</button>
                         <button id="nav-r" onclick="showTab('sec-ranking', 'nav-r')" class="nav-btn px-3 py-1.5 font-black uppercase rounded-lg transition-all duration-200 ml-1">Ranking</button>
                         <button id="instructions-btn" onclick="openInstructions()" class="ml-1 w-8 h-8 rounded-full bg-white/80 text-sky-600 border border-slate-300/70 font-black text-sm hover:bg-sky-50 active:scale-95 transition flex-none" aria-label="Abrir instrucciones">?</button>
                     </div>
@@ -1220,6 +1396,13 @@
                     <h2 class="text-base font-black uppercase tracking-widest text-slate-700">Centro de Datos en Vivo</h2>
                 </div>
                 <div id="live-container" class="space-y-3"></div>
+            </section>
+
+            <!-- PESTAÑA TABLAS DE GRUPOS -->
+            <section id="sec-grupos" class="main-content hidden space-y-4">
+                <h2 class="text-base font-black uppercase tracking-widest text-slate-700">📋 Tablas de Posiciones por Grupo</h2>
+                <p class="text-xs font-bold text-slate-500 -mt-2">Solo se actualizan con partidos marcados como FT.</p>
+                <div id="groups-standings-container" class="space-y-4"></div>
             </section>
 
             <!-- PESTAÑA RANKING POR FASE -->
