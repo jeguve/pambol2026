@@ -28,7 +28,7 @@ const partidosMundial = [
     { id: 'c6', local: 'Brasil', localFlag: 'BR', visit: 'Escocia', visitFlag: 'GB-SCT', sede: 'Estadio Miami', hora: '2026-06-24T14:00:00', fase: 'grupos', grupo: 'C' },
 
     // --- GRUPO D ---
-    { id: 'd1', local: 'USA', localFlag: 'US', visit: 'Paraguay', visitFlag: 'PY', sede: 'Estadio Los Angeles', hora: '2026-06-12T19:00:00', fase: 'grupos', grupo: 'D' },
+    { id: 'd1', local: 'USA', localFlag: 'US', visit: 'Paraguay', visitFlag: 'PY', sede: 'Estadio Los Angeles', hora: '2026-06-12T19:00:00-07:00', fase: 'grupos', grupo: 'D' },
     { id: 'd2', local: 'Australia', localFlag: 'AU', visit: 'Turquía', visitFlag: 'TR', sede: 'Estadio Vancouver', hora: '2026-06-13T22:00:00', fase: 'grupos', grupo: 'D' },
     { id: 'd3', local: 'USA', localFlag: 'US', visit: 'Australia', visitFlag: 'AU', sede: 'Estadio Seattle', hora: '2026-06-19T13:00:00', fase: 'grupos', grupo: 'D' },
     { id: 'd4', local: 'Turquía', localFlag: 'TR', visit: 'Paraguay', visitFlag: 'PY', sede: 'Estadio San Francisco', hora: '2026-06-19T21:00:00', fase: 'grupos', grupo: 'D' },
