@@ -299,6 +299,15 @@ async function main() {
     const json = await apiFootballGet(query);
     await incrementApiUsage(currentUsage.ref, 1);
     fixturesPorFecha.set(date, Array.isArray(json.response) ? json.response : []);
+    console.log(
+  'Fixtures recibidos:',
+  (json.response || []).map(f => ({
+    id: f.fixture?.id,
+    home: f.teams?.home?.name,
+    away: f.teams?.away?.name,
+    status: f.fixture?.status?.short
+  }))
+);
   }
 
   for (const partido of candidatos) {
@@ -307,11 +316,32 @@ async function main() {
 
     const date = yyyyMmDdInTimezone(new Date(partido.hora), API_TIMEZONE);
     const fixtures = fixturesPorFecha.get(date) || [];
-    const expectedFixtureId = actual.apiFixtureId || partido.apiFixtureId || partido.fixtureId || null;
-    const fx = fixtures.find(item => {
-      if (expectedFixtureId && Number(item?.fixture?.id) === Number(expectedFixtureId)) return true;
-      return matchFixtureToPartido(item, partido, aliases);
-    });
+   // const expectedFixtureId = actual.apiFixtureId || partido.apiFixtureId || partido.fixtureId || null;
+    //const fx = fixtures.find(item => {
+     // if (expectedFixtureId && Number(item?.fixture?.id) === Number(expectedFixtureId)) return true;
+      //return matchFixtureToPartido(item, partido, aliases);
+    //});
+    const expectedFixtureId =
+  actual.apiFixtureId ||
+  partido.apiFixtureId ||
+  partido.fixtureId ||
+  null;
+
+// Primero buscar por fixture ID
+let fx = null;
+
+if (expectedFixtureId) {
+  fx = fixtures.find(
+    item => Number(item?.fixture?.id) === Number(expectedFixtureId)
+  );
+}
+
+// Si no lo encontró, intentar por nombres
+if (!fx) {
+  fx = fixtures.find(item =>
+    matchFixtureToPartido(item, partido, aliases)
+  );
+}
 
     if (!fx) {
       // Marcamos precheck para no gastar requests repetidos antes del inicio si la API todavía no publica el fixture.
