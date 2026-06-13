@@ -1,54 +1,212 @@
 {
-  "México": ["Mexico", "México"],
-  "USA": ["USA", "United States", "United States of America"],
-  "Corea del Sur": ["South Korea", "Korea Republic", "Korea Rep"],
-  "Chequia": ["Czech Republic", "Czechia"],
-  "Sudáfrica": ["South Africa"],
-  "Canadá": ["Canada"],
-  "Catar": ["Qatar"],
-  "Suiza": ["Switzerland"],
-  "Brasil": ["Brazil"],
-  "Marruecos": ["Morocco"],
-  "Escocia": ["Scotland"],
-  "Haití": ["Haiti"],
-  "Paraguay": ["Paraguay"],
-  "Australia": ["Australia"],
-  "Turquía": ["Turkey", "Türkiye"],
-  "Alemania": ["Germany"],
-  "Curazao": ["Curacao", "Curaçao"],
-  "C. de Marfil": ["Ivory Coast", "Côte d'Ivoire", "Cote d'Ivoire"],
-  "Ecuador": ["Ecuador"],
-  "Países Bajos": ["Netherlands"],
-  "Japón": ["Japan"],
-  "Suecia": ["Sweden"],
-  "Túnez": ["Tunisia"],
-  "Bélgica": ["Belgium"],
-  "Egipto": ["Egypt"],
-  "Irán": ["Iran"],
-  "N. Zelanda": ["New Zealand"],
-  "España": ["Spain"],
-  "Cabo Verde": ["Cape Verde"],
-  "Arabia Saudita": ["Saudi Arabia"],
-  "Uruguay": ["Uruguay"],
-  "Francia": ["France"],
-  "Senegal": ["Senegal"],
-  "Irak": ["Iraq"],
-  "Noruega": ["Norway"],
-  "Argentina": ["Argentina"],
-  "Argelia": ["Algeria"],
-  "Austria": ["Austria"],
-  "Jordania": ["Jordan"],
-  "Portugal": ["Portugal"],
-  "R.D. Congo": ["DR Congo", "Congo DR", "Democratic Republic of the Congo"],
-  "Uzbekistán": ["Uzbekistan"],
-  "Colombia": ["Colombia"],
-  "Inglaterra": ["England"],
-  "Croacia": ["Croatia"],
-  "Ghana": ["Ghana"],
-  "Panamá": ["Panama"],
-  "Bosnia": ["Bosnia and Herzegovina", "Bosnia"],
-  "Ganador S1": ["Ganador S1"],
-  "Ganador S2": ["Ganador S2"],
-  "Perdedor S1": ["Perdedor S1"],
-  "Perdedor S2": ["Perdedor S2"]
+  "México": [
+    "Mexico",
+    "México"
+  ],
+  "USA": [
+    "United States",
+    "USA",
+    "United States of America"
+  ],
+  "Corea del Sur": [
+    "South Korea",
+    "Korea Republic",
+    "Korea Rep"
+  ],
+  "Chequia": [
+    "Czech Republic",
+    "Czechia"
+  ],
+  "Sudáfrica": [
+    "South Africa"
+  ],
+  "Canadá": [
+    "Canada"
+  ],
+  "Catar": [
+    "Qatar"
+  ],
+  "Suiza": [
+    "Switzerland"
+  ],
+  "Brasil": [
+    "Brazil"
+  ],
+  "Marruecos": [
+    "Morocco"
+  ],
+  "Escocia": [
+    "Scotland"
+  ],
+  "Haití": [
+    "Haiti"
+  ],
+  "Paraguay": [
+    "Paraguay"
+  ],
+  "Australia": [
+    "Australia"
+  ],
+  "Turquía": [
+    "Turkey",
+    "Türkiye"
+  ],
+  "Alemania": [
+    "Germany"
+  ],
+  "Curazao": [
+    "Curacao",
+    "Curaçao"
+  ],
+  "C. de Marfil": [
+    "Ivory Coast",
+    "Côte d'Ivoire",
+    "Cote d'Ivoire"
+  ],
+  "Ecuador": [
+    "Ecuador"
+  ],
+  "Países Bajos": [
+    "Netherlands"
+  ],
+  "Japón": [
+    "Japan"
+  ],
+  "Suecia": [
+    "Sweden"
+  ],
+  "Túnez": [
+    "Tunisia"
+  ],
+  "Bélgica": [
+    "Belgium"
+  ],
+  "Egipto": [
+    "Egypt"
+  ],
+  "Irán": [
+    "Iran"
+  ],
+  "N. Zelanda": [
+    "New Zealand"
+  ],
+  "España": [
+    "Spain"
+  ],
+  "Cabo Verde": [
+    "Cape Verde"
+  ],
+  "Arabia Saudita": [
+    "Saudi Arabia"
+  ],
+  "Uruguay": [
+    "Uruguay"
+  ],
+  "Francia": [
+    "France"
+  ],
+  "Senegal": [
+    "Senegal"
+  ],
+  "Irak": [
+    "Iraq"
+  ],
+  "Noruega": [
+    "Norway"
+  ],
+  "Argentina": [
+    "Argentina"
+  ],
+  "Argelia": [
+    "Algeria"
+  ],
+  "Austria": [
+    "Austria"
+  ],
+  "Jordania": [
+    "Jordan"
+  ],
+  "Portugal": [
+    "Portugal"
+  ],
+  "R.D. Congo": [
+    "DR Congo",
+    "Congo DR",
+    "Democratic Republic of the Congo"
+  ],
+  "Uzbekistán": [
+    "Uzbekistan"
+  ],
+  "Colombia": [
+    "Colombia"
+  ],
+  "Inglaterra": [
+    "England"
+  ],
+  "Croacia": [
+    "Croatia"
+  ],
+  "Ghana": [
+    "Ghana"
+  ],
+  "Panamá": [
+    "Panama"
+  ],
+  "Bosnia": [
+    "Bosnia and Herzegovina",
+    "Bosnia"
+  ],
+  "Ganador S1": [
+    "Ganador S1"
+  ],
+  "Ganador S2": [
+    "Ganador S2"
+  ],
+  "Perdedor S1": [
+    "Perdedor S1"
+  ],
+  "Perdedor S2": [
+    "Perdedor S2"
+  ],
+  "Estados Unidos": [
+    "United States",
+    "USA",
+    "United States of America"
+  ],
+  "Costa de Marfil": [
+    "Ivory Coast",
+    "Côte d'Ivoire",
+    "Cote d'Ivoire"
+  ],
+  "Nueva Zelanda": [
+    "New Zealand"
+  ],
+  "United States": [
+    "United States",
+    "USA",
+    "United States of America"
+  ],
+  "Ivory Coast": [
+    "Ivory Coast",
+    "Côte d'Ivoire",
+    "Cote d'Ivoire"
+  ],
+  "DR Congo": [
+    "DR Congo",
+    "Congo DR",
+    "Democratic Republic of the Congo"
+  ],
+  "South Korea": [
+    "South Korea",
+    "Korea Republic",
+    "Korea Rep"
+  ],
+  "Czechia": [
+    "Czechia",
+    "Czech Republic"
+  ],
+  "Bosnia and Herzegovina": [
+    "Bosnia and Herzegovina",
+    "Bosnia"
+  ]
 }
