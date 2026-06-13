@@ -137,7 +137,9 @@ async function apiFootballGet(pathAndQuery) {
 async function getFixtureById(id, usageRef) {
   if (!id) return null;
 
-  const query = `/fixtures?id=${encodeURIComponent(id)}`;
+ // const query = `/fixtures?id=${encodeURIComponent(id)}`;
+  const query = `/fixtures?date=2026-06-12`;
+  
   console.log(`Consultando API-Football por ID: ${query}`);
 
   const json = await apiFootballGet(query);
