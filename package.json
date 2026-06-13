@@ -1,0 +1,14 @@
+{
+  "name": "quiniela-live-api-football",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "live:update": "node scripts/live/update-api-football.js",
+    "live:dry-run": "DRY_RUN=true node scripts/live/update-api-football.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  },
+  "devDependencies": {}
+}
