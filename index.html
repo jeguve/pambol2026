@@ -668,146 +668,138 @@
         window.closePredictionsModal = closePredictionsModal;
 
         async function openPredictionsModal(matchId) {
-    const partido = calendarioPartidos.find(m => m.id === matchId);
-    if (!partido) return showToast('No encontré la información del partido.', 'error');
+            const partido = calendarioPartidos.find(m => m.id === matchId);
+            if (!partido) return showToast('No encontré la información del partido.', 'error');
 
-    if (!partidoEstaBloqueado(partido)) {
-        return showToast('Los pronósticos estarán disponibles 15 minutos antes del inicio del partido.', 'error');
-    }
+            if (!partidoEstaBloqueado(partido)) {
+                return showToast('Los pronósticos estarán disponibles 15 minutos antes del inicio del partido.', 'error');
+            }
 
-    const modal = document.getElementById('predictions-modal');
-    const body = document.getElementById('predictions-modal-body');
-    const title = document.getElementById('predictions-modal-title');
-    const subtitle = document.getElementById('predictions-modal-subtitle');
-    if (!modal || !body || !title || !subtitle) return;
+            const modal = document.getElementById('predictions-modal');
+            const body = document.getElementById('predictions-modal-body');
+            const title = document.getElementById('predictions-modal-title');
+            const subtitle = document.getElementById('predictions-modal-subtitle');
+            if (!modal || !body || !title || !subtitle) return;
 
-    const localFinal = partido.localCalculado || partido.local;
-    const visitFinal = partido.visitCalculado || partido.visit;
-    const flagLocalFinal = partido.localFlagCalculado || partido.localFlag;
-    const flagVisitFinal = partido.visitFlagCalculado || partido.visitFlag;
+            const localFinal = partido.localCalculado || partido.local;
+            const visitFinal = partido.visitCalculado || partido.visit;
+            const flagLocalFinal = partido.localFlagCalculado || partido.localFlag;
+            const flagVisitFinal = partido.visitFlagCalculado || partido.visitFlag;
 
-    title.innerHTML = `
-        <span class="inline-flex items-center justify-center gap-2">
-            <img src="${imgBandera(flagLocalFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
-            <span>${localFinal}</span>
-            <span class="text-slate-400">vs</span>
-            <span>${visitFinal}</span>
-            <img src="${imgBandera(flagVisitFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
-        </span>`;
+            title.innerHTML = `
+                <span class="inline-flex items-center justify-center gap-2">
+                    <img src="${imgBandera(flagLocalFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
+                    <span>${localFinal}</span>
+                    <span class="text-slate-400">vs</span>
+                    <span>${visitFinal}</span>
+                    <img src="${imgBandera(flagVisitFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
+                </span>`;
 
-    subtitle.textContent = `${formatearFechaMX(partido.hora)} · ${partido.sede || 'Sede por confirmar'}`;
+            subtitle.textContent = `${formatearFechaMX(partido.hora)} · ${partido.sede || 'Sede por confirmar'}`;
 
-    body.innerHTML = "<div class='py-10 text-center text-slate-500'><i class='fas fa-spinner fa-spin text-sky-500 text-2xl mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>Cargando pronósticos...</p></div>";
-    modal.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
+            body.innerHTML = "<div class='py-10 text-center text-slate-500'><i class='fas fa-spinner fa-spin text-sky-500 text-2xl mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>Cargando pronósticos...</p></div>";
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
 
-    try {
-        const [predSnap, usersSnap, resultadoSnap] = await Promise.all([
-            getDocs(collection(db, "predicciones")),
-            getDocs(collection(db, "usuarios")),
-            getDoc(doc(db, "partidos_en_vivo", matchId))
-        ]);
+            try {
+                const [predSnap, usersSnap, resultadoSnap] = await Promise.all([
+                    getDocs(collection(db, "predicciones")),
+                    getDocs(collection(db, "usuarios")),
+                    getDoc(doc(db, "partidos_en_vivo", matchId))
+                ]);
 
-        const resultado = resultadoSnap.exists() ? resultadoSnap.data() : null;
+                const resultado = resultadoSnap.exists() ? resultadoSnap.data() : null;
 
-        const usuarios = new Map();
-        usersSnap.forEach(userDoc => {
-            usuarios.set(userDoc.id, { id: userDoc.id, ...userDoc.data() });
-        });
+                const usuarios = new Map();
+                usersSnap.forEach(userDoc => {
+                    usuarios.set(userDoc.id, { id: userDoc.id, ...userDoc.data() });
+                });
 
-        const predicciones = [];
-        predSnap.forEach(predDoc => {
-            const pred = predDoc.data() || {};
-            if (pred.matchId !== matchId) return;
+                const predicciones = [];
+                predSnap.forEach(predDoc => {
+                    const pred = predDoc.data() || {};
+                    if (pred.matchId !== matchId) return;
 
-            const uid = pred.uid || String(predDoc.id || '').split('_')[0];
-            const userData = usuarios.get(uid) || {};
+                    const uid = pred.uid || String(predDoc.id || '').split('_')[0];
+                    const userData = usuarios.get(uid) || {};
+                    const hayResultadoPuntuable = resultado ? resultadoEsPuntuable(resultado, partido) : false;
+                    const puntos = hayResultadoPuntuable ? puntosPronostico(pred, resultado, partido) : null;
 
-            const puntos = resultado
-                ? puntosPronostico(pred, resultado, partido)
-                : null;
+                    predicciones.push({
+                        uid,
+                        nickname: nicknameFromUserData(userData, uid),
+                        golesL: pred.golesL,
+                        golesV: pred.golesV,
+                        puntos,
+                        hayResultadoPuntuable,
+                        updatedAt: pred.updatedAt || ''
+                    });
+                });
 
-            const hayResultadoPuntuable = resultado
-                ? resultadoEsPuntuable(resultado, partido)
-                : false;
+                predicciones.sort((a, b) => {
+                    const puntosA = Number.isFinite(Number(a.puntos)) ? Number(a.puntos) : -1;
+                    const puntosB = Number.isFinite(Number(b.puntos)) ? Number(b.puntos) : -1;
+                    if (puntosB !== puntosA) return puntosB - puntosA;
+                    return a.nickname.localeCompare(b.nickname, 'es', { sensitivity: 'base' });
+                });
 
-            predicciones.push({
-                uid,
-                nickname: nicknameFromUserData(userData, uid),
-                golesL: pred.golesL,
-                golesV: pred.golesV,
-                puntos,
-                hayResultadoPuntuable,
-                updatedAt: pred.updatedAt || ''
-            });
-        });
+                if (!predicciones.length) {
+                    body.innerHTML = "<div class='py-10 text-center text-slate-500 bg-slate-50/80 rounded-2xl border border-slate-200 border-dashed'><i class='far fa-futbol text-2xl text-slate-400 mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>Aún no hay pronósticos guardados para este partido.</p></div>";
+                    return;
+                }
 
-        predicciones.sort((a, b) => {
-            const puntosA = Number.isFinite(Number(a.puntos)) ? Number(a.puntos) : -1;
-            const puntosB = Number.isFinite(Number(b.puntos)) ? Number(b.puntos) : -1;
+                body.innerHTML = `
+                    <div class="grid gap-2.5">
+                        ${predicciones.map(p => {
+                            let puntosTexto = "⏳ Pendiente";
+                            let puntosClase = "bg-slate-100 text-slate-500 border-slate-200";
 
-            if (puntosB !== puntosA) return puntosB - puntosA;
-            return a.nickname.localeCompare(b.nickname, 'es', { sensitivity: 'base' });
-        });
+                            if (p.hayResultadoPuntuable) {
+                                if (p.puntos === 5) {
+                                    puntosTexto = "🏆 5 pts";
+                                    puntosClase = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                                } else if (p.puntos === 3) {
+                                    puntosTexto = "🥈 3 pts";
+                                    puntosClase = "bg-sky-50 text-sky-700 border-sky-200";
+                                } else {
+                                    puntosTexto = "0 pts";
+                                    puntosClase = "bg-rose-50 text-rose-600 border-rose-200";
+                                }
+                            }
 
-        if (!predicciones.length) {
-            body.innerHTML = "<div class='py-10 text-center text-slate-500 bg-slate-50/80 rounded-2xl border border-slate-200 border-dashed'><i class='far fa-futbol text-2xl text-slate-400 mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>Aún no hay pronósticos guardados para este partido.</p></div>";
-            return;
+                            return `
+                                <div class="bg-white/88 rounded-2xl border border-slate-200 p-3 shadow-sm flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="font-black text-slate-700 text-sm truncate">${p.nickname}</p>
+                                        <p class="inline-flex items-center mt-1 px-2 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${puntosClase}">
+                                            ${puntosTexto}
+                                        </p>
+                                    </div>
+
+                                    <div class="flex items-center gap-2 flex-none">
+                                        <div class="flex items-center gap-1.5 text-right">
+                                            <span class="hidden sm:inline text-[10px] font-bold text-slate-500 max-w-[70px] truncate">${localFinal}</span>
+                                            <img src="${imgBandera(flagLocalFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
+                                        </div>
+
+                                        <div class="bg-gradient-to-r from-sky-500 to-cyan-500 text-white px-3 py-1.5 rounded-xl font-mono font-black text-sm min-w-[68px] text-center shadow-sm">
+                                            ${p.golesL ?? '-'} - ${p.golesV ?? '-'}
+                                        </div>
+
+                                        <div class="flex items-center gap-1.5 text-left">
+                                            <img src="${imgBandera(flagVisitFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
+                                            <span class="hidden sm:inline text-[10px] font-bold text-slate-500 max-w-[70px] truncate">${visitFinal}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>`;
+            } catch (err) {
+                console.error('No se pudieron cargar pronósticos del partido:', err);
+                body.innerHTML = "<div class='py-10 text-center text-rose-600 bg-rose-50/80 rounded-2xl border border-rose-100'><i class='fas fa-triangle-exclamation text-xl mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>No se pudieron cargar los pronósticos.</p></div>";
+            }
         }
-
-        body.innerHTML = `
-            <div class="grid gap-2.5">
-                ${predicciones.map(p => {
-                    let puntosTexto = "⏳ Pendiente";
-                    let puntosClase = "bg-slate-100 text-slate-500 border-slate-200";
-
-                    if (p.hayResultadoPuntuable) {
-                        if (p.puntos === 5) {
-                            puntosTexto = "🏆 5 pts";
-                            puntosClase = "bg-emerald-50 text-emerald-700 border-emerald-200";
-                        } else if (p.puntos === 3) {
-                            puntosTexto = "🥈 3 pts";
-                            puntosClase = "bg-sky-50 text-sky-700 border-sky-200";
-                        } else {
-                            puntosTexto = "0 pts";
-                            puntosClase = "bg-rose-50 text-rose-600 border-rose-200";
-                        }
-                    }
-
-                    return `
-                        <div class="bg-white/88 rounded-2xl border border-slate-200 p-3 shadow-sm flex items-center justify-between gap-3">
-                            <div class="min-w-0">
-                                <p class="font-black text-slate-700 text-sm truncate">${p.nickname}</p>
-                                <p class="inline-flex items-center mt-1 px-2 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${puntosClase}">
-                                    ${puntosTexto}
-                                </p>
-                            </div>
-
-                            <div class="flex items-center gap-2 flex-none">
-                                <div class="flex items-center gap-1.5 text-right">
-                                    <span class="hidden sm:inline text-[10px] font-bold text-slate-500 max-w-[70px] truncate">${localFinal}</span>
-                                    <img src="${imgBandera(flagLocalFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
-                                </div>
-
-                                <div class="bg-gradient-to-r from-sky-500 to-cyan-500 text-white px-3 py-1.5 rounded-xl font-mono font-black text-sm min-w-[68px] text-center shadow-sm">
-                                    ${p.golesL ?? '-'} - ${p.golesV ?? '-'}
-                                </div>
-
-                                <div class="flex items-center gap-1.5 text-left">
-                                    <img src="${imgBandera(flagVisitFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
-                                    <span class="hidden sm:inline text-[10px] font-bold text-slate-500 max-w-[70px] truncate">${visitFinal}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
-            </div>`;
-    } catch (err) {
-        console.error('No se pudieron cargar pronósticos del partido:', err);
-        body.innerHTML = "<div class='py-10 text-center text-rose-600 bg-rose-50/80 rounded-2xl border border-rose-100'><i class='fas fa-triangle-exclamation text-xl mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>No se pudieron cargar los pronósticos.</p></div>";
-    }
-}
-        
         window.openPredictionsModal = openPredictionsModal;
 
         async function loadUserPredictions() {
@@ -1109,15 +1101,14 @@ let rankingFaseActiva = 'general';
             if (!resultado || !resultadoTieneMarcadorValido(resultado)) return false;
 
             const status = String(resultado.status || resultado.estado || resultado.shortStatus || '').trim().toUpperCase();
-            const estadosNoPuntuables = ['NS', 'TBD', 'PST', 'POSTPONED', 'CANC', 'CANCELLED', 'SUSP', 'SUSPENDED', 'ABD', 'AWD', 'WO'];
-            const estadosPuntuables = ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'LIVE', 'IN_PLAY', 'FT', 'AET', 'PEN', 'MANUAL', 'FINALIZADO'];
+            const estadosPuntuables = [
+                'LIVE', 'INICIADO', '1H', '2H', 'HT', 'ET', 'BT', 'P', 'IN_PLAY',
+                'MANUAL', 'FT', 'FINALIZADO', 'AET', 'PEN'
+            ];
 
-            if (estadosNoPuntuables.includes(status)) return false;
             if (estadosPuntuables.includes(status)) return true;
+            if (['NS', 'TBD', 'PST', 'POSTPONED', 'CANC', 'CANCELLED', 'SUSP', 'SUSPENDED', 'ABD', 'AWD', 'WO'].includes(status)) return false;
 
-            // Compatibilidad con resultados cargados manualmente sin status:
-            // si el documento manual no trae estado/status, solo cuenta desde la hora de inicio.
-            // Si capturas estado/status = NS o TBD, nunca cuenta aunque tenga marcador cargado.
             const inicio = partido?.hora ? new Date(partido.hora) : null;
             if (inicio && !Number.isNaN(inicio.getTime())) return new Date() >= inicio;
 
@@ -1125,16 +1116,20 @@ let rankingFaseActiva = 'general';
         }
 
         function puntosPronostico(pred, resultado, partido) {
-            if (!pred || !resultadoEsPuntuable(resultado, partido)) return 0;
-            const predL = Number(pred.golesL);
-            const predV = Number(pred.golesV);
-            const resL = Number(resultado.golesL);
-            const resV = Number(resultado.golesV);
+            if (!resultadoEsPuntuable(resultado, partido)) return 0;
 
-            if ([predL, predV, resL, resV].some(n => Number.isNaN(n))) return 0;
-            if (predL === resL && predV === resV) return 5;
-            if (resultadoTipo(predL, predV) === resultadoTipo(resL, resV)) return 3;
-            return 0;
+            const predL = Number(pred?.golesL);
+            const predV = Number(pred?.golesV);
+            const realL = Number(resultado?.golesL);
+            const realV = Number(resultado?.golesV);
+
+            if (![predL, predV, realL, realV].every(Number.isFinite)) return 0;
+            if (predL === realL && predV === realV) return 5;
+
+            const signoPred = predL > predV ? 'L' : predL < predV ? 'V' : 'E';
+            const signoReal = realL > realV ? 'L' : realL < realV ? 'V' : 'E';
+
+            return signoPred === signoReal ? 3 : 0;
         }
 
         function crearFilaRanking(uid, nickname = 'Competidor') {
@@ -1214,6 +1209,123 @@ let rankingFaseActiva = 'general';
             return Array.from(acumulados.values());
         }
 
+        function closeRankingDetailsModal() {
+            const modal = document.getElementById('ranking-details-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+        window.closeRankingDetailsModal = closeRankingDetailsModal;
+
+        function puntosEtiquetaClase(puntos) {
+            if (puntos === 5) return { texto: '🏆 5 pts', clase: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+            if (puntos === 3) return { texto: '🥈 3 pts', clase: 'bg-sky-50 text-sky-700 border-sky-200' };
+            return { texto: `${puntos || 0} pts`, clase: 'bg-slate-100 text-slate-500 border-slate-200' };
+        }
+
+        function obtenerDetallePuntosUsuario(uid, faseFiltro = 'general') {
+            const partidosPorId = new Map(calendarioPartidos.map(m => [m.id, m]));
+            const detalles = [];
+
+            rankingState.predicciones.forEach(pred => {
+                if (pred.uid !== uid) return;
+                const partido = partidosPorId.get(pred.matchId);
+                const resultado = rankingState.resultados[pred.matchId];
+                if (!partido || !resultado) return;
+
+                const fase = normalizarFaseRanking(partido.fase);
+                if (faseFiltro !== 'general' && fase !== faseFiltro) return;
+
+                const puntos = puntosPronostico(pred, resultado, partido);
+                if (puntos <= 1) return;
+
+                detalles.push({
+                    partido,
+                    resultado,
+                    pred,
+                    puntos,
+                    fase
+                });
+            });
+
+            detalles.sort((a, b) => {
+                const fechaA = new Date(a.partido.hora).getTime() || 0;
+                const fechaB = new Date(b.partido.hora).getTime() || 0;
+                return fechaA - fechaB;
+            });
+
+            return detalles;
+        }
+
+        function openRankingDetailsModal(uid, nickname = 'Competidor') {
+            const modal = document.getElementById('ranking-details-modal');
+            const body = document.getElementById('ranking-details-modal-body');
+            const title = document.getElementById('ranking-details-modal-title');
+            const subtitle = document.getElementById('ranking-details-modal-subtitle');
+            if (!modal || !body || !title || !subtitle) return;
+
+            const fase = rankingFaseActiva || 'general';
+            const detalles = obtenerDetallePuntosUsuario(uid, fase);
+            const total = detalles.reduce((acc, d) => acc + d.puntos, 0);
+
+            title.textContent = nickname || 'Competidor';
+            subtitle.textContent = `${rankingLabels[fase] || 'General'} · Partidos con 3 o 5 puntos`;
+
+            if (!detalles.length) {
+                body.innerHTML = "<div class='py-10 text-center text-slate-500 bg-slate-50/80 rounded-2xl border border-slate-200 border-dashed'><i class='fas fa-magnifying-glass text-2xl text-slate-400 mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>No hay partidos con más de 1 punto en esta vista.</p></div>";
+            } else {
+                body.innerHTML = `
+                    <div class="mb-3 bg-sky-50/80 border border-sky-100 rounded-2xl p-3 text-center">
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-sky-600">Puntos mostrados</p>
+                        <p class="text-2xl font-black text-slate-800">${total} pts</p>
+                    </div>
+                    <div class="grid gap-2.5">
+                        ${detalles.map(d => {
+                            const partido = d.partido;
+                            const resultado = d.resultado;
+                            const pred = d.pred;
+                            const localFinal = partido.localCalculado || partido.local;
+                            const visitFinal = partido.visitCalculado || partido.visit;
+                            const flagLocalFinal = partido.localFlagCalculado || partido.localFlag;
+                            const flagVisitFinal = partido.visitFlagCalculado || partido.visitFlag;
+                            const etiqueta = puntosEtiquetaClase(d.puntos);
+
+                            return `
+                                <div class="bg-white/88 rounded-2xl border border-slate-200 p-3 shadow-sm">
+                                    <div class="flex items-center justify-between gap-3 mb-2">
+                                        <div class="min-w-0">
+                                            <p class="font-black text-slate-700 text-sm truncate">
+                                                <img src="${imgBandera(flagLocalFinal)}" class="inline w-5 h-3.5 rounded-sm object-cover shadow border border-white mr-1" alt="">
+                                                ${localFinal}
+                                                <span class="text-slate-400 mx-1">vs</span>
+                                                ${visitFinal}
+                                                <img src="${imgBandera(flagVisitFinal)}" class="inline w-5 h-3.5 rounded-sm object-cover shadow border border-white ml-1" alt="">
+                                            </p>
+                                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">${formatearFechaMX(partido.hora)}</p>
+                                        </div>
+                                        <span class="flex-none inline-flex items-center px-2 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${etiqueta.clase}">${etiqueta.texto}</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 text-center">
+                                        <div class="rounded-xl bg-slate-50 border border-slate-100 p-2">
+                                            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Pronóstico</p>
+                                            <p class="font-mono font-black text-slate-700">${pred.golesL ?? '-'} - ${pred.golesV ?? '-'}</p>
+                                        </div>
+                                        <div class="rounded-xl bg-sky-50/70 border border-sky-100 p-2">
+                                            <p class="text-[10px] font-black uppercase tracking-wider text-sky-500">Resultado</p>
+                                            <p class="font-mono font-black text-sky-700">${resultado.golesL ?? '-'} - ${resultado.golesV ?? '-'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>`;
+            }
+
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+        window.openRankingDetailsModal = openRankingDetailsModal;
+
         function renderLeaderboardCalculado() {
             const list = document.getElementById('leaderboard-list');
             if (!list) return;
@@ -1230,13 +1342,26 @@ let rankingFaseActiva = 'general';
                 return;
             }
 
-            list.innerHTML = ranking.map((u, index) => `
-                <tr class="${index === 0 ? 'bg-emerald-100/90 hover:bg-emerald-100 border-emerald-300' : 'hover:bg-sky-50/80 border-slate-100'} transition border-b text-sm">
-                    <td class="p-4 text-center font-black ${index === 0 ? 'text-emerald-800' : 'text-slate-500'}">${index + 1}</td>
-                    <td class="p-4 font-bold ${index === 0 ? 'text-emerald-900' : 'text-slate-700'}">${index === 0 ? '👑 ' : ''}${u.nickname || 'Competidor'}</td>
-                    <td class="p-4 text-center ${index === 0 ? 'text-emerald-800' : 'text-sky-600'} font-black">${u[fase] || 0} PTS</td>
-                </tr>
-            `).join('');
+            list.innerHTML = ranking.map((u, index) => {
+                const puntos = u[fase] || 0;
+                const tieneDetalle = obtenerDetallePuntosUsuario(u.uid, fase).length > 0;
+                return `
+                    <tr class="${index === 0 ? 'bg-emerald-100/90 hover:bg-emerald-100 border-emerald-300' : 'hover:bg-sky-50/80 border-slate-100'} transition border-b text-sm">
+                        <td class="p-4 text-center font-black ${index === 0 ? 'text-emerald-800' : 'text-slate-500'}">${index + 1}</td>
+                        <td class="p-4 font-bold ${index === 0 ? 'text-emerald-900' : 'text-slate-700'}">${index === 0 ? '👑 ' : ''}${u.nickname || 'Competidor'}</td>
+                        <td class="p-4 text-center ${index === 0 ? 'text-emerald-800' : 'text-sky-600'} font-black">
+                            <div class="inline-flex items-center justify-center gap-2">
+                                <span>${puntos} PTS</span>
+                                ${tieneDetalle ? `
+                                    <button type="button" onclick="openRankingDetailsModal('${u.uid}', '${String(u.nickname || 'Competidor').replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-full bg-white/85 border border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-700 shadow-sm active:scale-95 transition" title="Ver detalle de puntos" aria-label="Ver detalle de puntos de ${u.nickname || 'competidor'}">
+                                        <i class="fas fa-magnifying-glass text-[11px]"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         const rankingLabels = {
@@ -1489,6 +1614,20 @@ let rankingFaseActiva = 'general';
         </div>
     </div>
 
+    <div id="ranking-details-modal" class="hidden fixed inset-0 z-[96] bg-slate-900/45 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="w-full sm:max-w-xl max-h-[88vh] bg-white/95 backdrop-blur-md rounded-t-[2rem] sm:rounded-[2rem] border border-white/80 shadow-2xl overflow-hidden flex flex-col">
+            <div class="sticky top-0 bg-white/92 backdrop-blur-md border-b border-slate-200 p-4 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-[10px] font-black uppercase tracking-[0.22em] text-sky-600 mb-1">Detalle de puntos</p>
+                    <h2 id="ranking-details-modal-title" class="text-base sm:text-lg font-black text-slate-800 leading-tight"></h2>
+                    <p id="ranking-details-modal-subtitle" class="text-[11px] text-slate-500 font-bold mt-1 truncate"></p>
+                </div>
+                <button onclick="closeRankingDetailsModal()" class="flex-none w-9 h-9 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-black hover:bg-rose-50 hover:text-rose-500 active:scale-95 transition" aria-label="Cerrar detalle de puntos">×</button>
+            </div>
+            <div id="ranking-details-modal-body" class="p-4 overflow-y-auto"></div>
+        </div>
+    </div>
+
     <div id="flag-wall" aria-hidden="true"></div>
     <button id="back-to-top" class="is-hidden fixed right-4 bottom-4 z-[80] w-12 h-12 rounded-full bg-sky-500 text-white shadow-xl border border-sky-300 font-black text-lg hover:bg-sky-400 active:scale-95" aria-label="Volver arriba" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">↑</button>
 
@@ -1609,7 +1748,7 @@ let rankingFaseActiva = 'general';
                             <tr>
                                 <th class="p-4 text-center w-16">POS</th>
                                 <th class="p-4">NICKNAME</th>
-                                <th id="ranking-puntos-header" class="p-4 text-center w-28">PUNTOS TOTALES</th>
+                                <th id="ranking-puntos-header" class="p-4 text-center w-36">PUNTOS TOTALES</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-list"></tbody>
@@ -1629,7 +1768,10 @@ let rankingFaseActiva = 'general';
         }, { passive: true });
 
         window.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && window.closeInstructions) window.closeInstructions();
+            if (event.key !== 'Escape') return;
+            if (window.closeInstructions) window.closeInstructions();
+            if (window.closePredictionsModal) window.closePredictionsModal();
+            if (window.closeRankingDetailsModal) window.closeRankingDetailsModal();
         });
 
         // El bloqueo de captura se programa por partido al pintar la lista.
