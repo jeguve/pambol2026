@@ -1,11 +1,11 @@
 {
-  "name": "quiniela-live-api-football",
+  "name": "quiniela-live-worldcup26",
   "version": "1.0.0",
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "live:update": "node scripts/live/update-api-football.js",
-    "live:dry-run": "DRY_RUN=true node scripts/live/update-api-football.js"
+    "live:update:worldcup26": "node scripts/live/update-worldcup26.js",
+    "live:dry-run:worldcup26": "DRY_RUN=true node scripts/live/update-worldcup26.js"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0"
