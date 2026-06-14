@@ -2,6 +2,7 @@ name: Actualizar marcadores WorldCup26
 
 on:
   workflow_dispatch:
+   push:
   schedule:
     # GitHub usa UTC. Corre cada 5 minutos durante el torneo.
     - cron: "*/5 * * * *"
