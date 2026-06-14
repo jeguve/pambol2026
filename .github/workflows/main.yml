@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     # GitHub usa UTC. Corre cada 5 minutos durante el torneo.
-    - cron: "*/2 * * * *"
+    - cron: "*/5 * * * *"
 
 concurrency:
   group: worldcup26-live
