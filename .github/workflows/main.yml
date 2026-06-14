@@ -1,0 +1,36 @@
+name: Actualizar marcadores WorldCup26
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub usa UTC. Corre cada 5 minutos durante el torneo.
+    - cron: "*/5 * * * *"
+
+concurrency:
+  group: worldcup26-live
+  cancel-in-progress: true
+
+jobs:
+  update-live-scores:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Update Firestore live scores from WorldCup26
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          # Opcional. Normalmente no se necesita; déjalo vacío si la API pública responde sin token.
+          WORLDCUP26_TOKEN: ${{ secrets.WORLDCUP26_TOKEN }}
+          WORLDCUP26_API_BASE: "https://worldcup26.ir"
+          DEBUG_WORLDCUP26: "true"
+        run: npm run live:update:worldcup26
