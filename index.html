@@ -498,6 +498,7 @@
             const inputLocal = document.getElementById(`l-${matchId}`);
             const inputVisit = document.getElementById(`v-${matchId}`);
             const boton = document.getElementById(`btn-${matchId}`);
+            const botonPronosticos = document.getElementById(`pron-${matchId}`);
 
             [inputLocal, inputVisit].forEach(input => {
                 if (!input) return;
@@ -510,6 +511,12 @@
                 boton.textContent = '🚫';
                 boton.classList.remove('from-sky-500', 'to-cyan-500', 'hover:from-sky-400', 'hover:to-cyan-400');
                 boton.classList.add('from-slate-300', 'to-slate-300', 'opacity-60');
+            }
+
+            if (botonPronosticos) {
+                botonPronosticos.disabled = false;
+                botonPronosticos.classList.remove('opacity-45', 'cursor-not-allowed', 'bg-slate-200', 'text-slate-400', 'border-slate-200');
+                botonPronosticos.classList.add('bg-white/90', 'text-sky-700', 'border-sky-200', 'hover:bg-sky-50');
             }
         }
 
@@ -614,9 +621,14 @@
                         </div>
                     </div>
                     
-                    <button id="btn-${m.id}" onclick="savePrediction('${m.id}')" ${isBlocked ? 'disabled' : ''} class="w-full md:w-auto bg-gradient-to-r from-sky-500 to-cyan-500 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:from-sky-400 hover:to-cyan-400 active:scale-95 disabled:from-slate-300 disabled:to-slate-300 disabled:opacity-60 disabled:scale-100 transition-all duration-200 shadow-sm">
-                        ${isBlocked ? '🚫' : 'Guardar'}
-                    </button>
+                    <div class="w-full md:w-auto flex flex-col gap-2">
+                        <button id="btn-${m.id}" onclick="savePrediction('${m.id}')" ${isBlocked ? 'disabled' : ''} class="w-full md:w-auto bg-gradient-to-r from-sky-500 to-cyan-500 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:from-sky-400 hover:to-cyan-400 active:scale-95 disabled:from-slate-300 disabled:to-slate-300 disabled:opacity-60 disabled:scale-100 transition-all duration-200 shadow-sm">
+                            ${isBlocked ? '🚫' : 'Guardar'}
+                        </button>
+                        <button id="pron-${m.id}" onclick="openPredictionsModal('${m.id}')" ${isBlocked ? '' : 'disabled'} class="w-full md:w-auto px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all duration-200 shadow-sm active:scale-95 ${isBlocked ? 'bg-white/90 text-sky-700 border-sky-200 hover:bg-sky-50' : 'bg-slate-200 text-slate-400 border-slate-200 opacity-45 cursor-not-allowed'}">
+                            Pronósticos
+                        </button>
+                    </div>
                 </div>`;
             }).join('');
             programarBloqueoPartidos(filtrados);
@@ -641,6 +653,110 @@
                 showToast('No se pudo guardar el marcador. Intenta nuevamente.', 'error');
             }
         };
+
+        function nicknameFromUserData(userData, uid) {
+            const emailName = String(userData?.email || '').split('@')[0];
+            return String(userData?.nickname || userData?.apodo || userData?.displayName || userData?.nombre || emailName || uid || 'Participante').trim();
+        }
+
+        function closePredictionsModal() {
+            const modal = document.getElementById('predictions-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+        window.closePredictionsModal = closePredictionsModal;
+
+        async function openPredictionsModal(matchId) {
+            const partido = calendarioPartidos.find(m => m.id === matchId);
+            if (!partido) return showToast('No encontré la información del partido.', 'error');
+            if (!partidoEstaBloqueado(partido)) {
+                return showToast('Los pronósticos estarán disponibles 15 minutos antes del inicio del partido.', 'error');
+            }
+
+            const modal = document.getElementById('predictions-modal');
+            const body = document.getElementById('predictions-modal-body');
+            const title = document.getElementById('predictions-modal-title');
+            const subtitle = document.getElementById('predictions-modal-subtitle');
+            if (!modal || !body || !title || !subtitle) return;
+
+            const localFinal = partido.localCalculado || partido.local;
+            const visitFinal = partido.visitCalculado || partido.visit;
+            const flagLocalFinal = partido.localFlagCalculado || partido.localFlag;
+            const flagVisitFinal = partido.visitFlagCalculado || partido.visitFlag;
+
+            title.innerHTML = `
+                <span class="inline-flex items-center justify-center gap-2">
+                    <img src="${imgBandera(flagLocalFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
+                    <span>${localFinal}</span>
+                    <span class="text-slate-400">vs</span>
+                    <span>${visitFinal}</span>
+                    <img src="${imgBandera(flagVisitFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
+                </span>`;
+            subtitle.textContent = `${formatearFechaMX(partido.hora)} · ${partido.sede || 'Sede por confirmar'}`;
+            body.innerHTML = "<div class='py-10 text-center text-slate-500'><i class='fas fa-spinner fa-spin text-sky-500 text-2xl mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>Cargando pronósticos...</p></div>";
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+
+            try {
+                const [predSnap, usersSnap] = await Promise.all([
+                    getDocs(collection(db, "predicciones")),
+                    getDocs(collection(db, "usuarios"))
+                ]);
+
+                const usuarios = new Map();
+                usersSnap.forEach(userDoc => usuarios.set(userDoc.id, { id: userDoc.id, ...userDoc.data() }));
+
+                const predicciones = [];
+                predSnap.forEach(predDoc => {
+                    const pred = predDoc.data() || {};
+                    if (pred.matchId !== matchId) return;
+                    const uid = pred.uid || String(predDoc.id || '').split('_')[0];
+                    const userData = usuarios.get(uid) || {};
+                    predicciones.push({
+                        uid,
+                        nickname: nicknameFromUserData(userData, uid),
+                        golesL: pred.golesL,
+                        golesV: pred.golesV,
+                        updatedAt: pred.updatedAt || ''
+                    });
+                });
+
+                predicciones.sort((a, b) => a.nickname.localeCompare(b.nickname, 'es', { sensitivity: 'base' }));
+
+                if (!predicciones.length) {
+                    body.innerHTML = "<div class='py-10 text-center text-slate-500 bg-slate-50/80 rounded-2xl border border-slate-200 border-dashed'><i class='far fa-futbol text-2xl text-slate-400 mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>Aún no hay pronósticos guardados para este partido.</p></div>";
+                    return;
+                }
+
+                body.innerHTML = `
+                    <div class="grid gap-2.5">
+                        ${predicciones.map(p => `
+                            <div class="bg-white/88 rounded-2xl border border-slate-200 p-3 shadow-sm flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="font-black text-slate-700 text-sm truncate">${p.nickname}</p>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pronóstico guardado</p>
+                                </div>
+                                <div class="flex items-center gap-2 flex-none">
+                                    <div class="flex items-center gap-1.5 text-right">
+                                        <span class="hidden sm:inline text-[10px] font-bold text-slate-500 max-w-[70px] truncate">${localFinal}</span>
+                                        <img src="${imgBandera(flagLocalFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
+                                    </div>
+                                    <div class="bg-gradient-to-r from-sky-500 to-cyan-500 text-white px-3 py-1.5 rounded-xl font-mono font-black text-sm min-w-[68px] text-center shadow-sm">${p.golesL ?? '-'} - ${p.golesV ?? '-'}</div>
+                                    <div class="flex items-center gap-1.5 text-left">
+                                        <img src="${imgBandera(flagVisitFinal)}" class="w-6 h-4 rounded-sm object-cover shadow border border-white" alt="">
+                                        <span class="hidden sm:inline text-[10px] font-bold text-slate-500 max-w-[70px] truncate">${visitFinal}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>`;
+            } catch (err) {
+                console.error('No se pudieron cargar pronósticos del partido:', err);
+                body.innerHTML = "<div class='py-10 text-center text-rose-600 bg-rose-50/80 rounded-2xl border border-rose-100'><i class='fas fa-triangle-exclamation text-xl mb-3'></i><p class='text-xs font-black uppercase tracking-wider'>No se pudieron cargar los pronósticos.</p></div>";
+            }
+        }
+        window.openPredictionsModal = openPredictionsModal;
 
         async function loadUserPredictions() {
             if (!currentUser) return;
@@ -679,9 +795,9 @@
                 const minuto = d.minuto || d.elapsed || d.minute || '';
                 if (['FT', 'AET', 'PEN'].includes(raw)) return 'Finalizado';
                 if (raw === 'HT') return 'Medio tiempo';
-                if (['1H', '2H', 'ET', 'BT', 'P', 'LIVE'].includes(raw)) return minuto ? `En vivo · ${minuto}'` : 'En vivo';
+                if (['1H', '2H', 'ET', 'BT', 'P', 'LIVE', 'IN_PLAY'].includes(raw)) return 'EN VIVO';
                 if (raw === 'NS') return 'Por iniciar';
-                return minuto ? `En vivo · ${minuto}'` : 'En vivo';
+                return 'EN VIVO';
             };
 
             const items = Object.keys(resultados)
@@ -1307,6 +1423,20 @@ let rankingFaseActiva = 'general';
             <button onclick="closeInstructions()" class="w-full mt-6 bg-sky-500 text-white p-3 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-sky-400 transition shadow-md">Entendido</button>
         </div>
     </div>
+    <div id="predictions-modal" class="hidden fixed inset-0 z-[95] bg-slate-900/45 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="w-full sm:max-w-xl max-h-[88vh] bg-white/95 backdrop-blur-md rounded-t-[2rem] sm:rounded-[2rem] border border-white/80 shadow-2xl overflow-hidden flex flex-col">
+            <div class="sticky top-0 bg-white/92 backdrop-blur-md border-b border-slate-200 p-4 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-[10px] font-black uppercase tracking-[0.22em] text-sky-600 mb-1">Pronósticos del partido</p>
+                    <h2 id="predictions-modal-title" class="text-base sm:text-lg font-black text-slate-800 leading-tight"></h2>
+                    <p id="predictions-modal-subtitle" class="text-[11px] text-slate-500 font-bold mt-1 truncate"></p>
+                </div>
+                <button onclick="closePredictionsModal()" class="flex-none w-9 h-9 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-black hover:bg-rose-50 hover:text-rose-500 active:scale-95 transition" aria-label="Cerrar pronósticos">×</button>
+            </div>
+            <div id="predictions-modal-body" class="p-4 overflow-y-auto"></div>
+        </div>
+    </div>
+
     <div id="flag-wall" aria-hidden="true"></div>
     <button id="back-to-top" class="is-hidden fixed right-4 bottom-4 z-[80] w-12 h-12 rounded-full bg-sky-500 text-white shadow-xl border border-sky-300 font-black text-lg hover:bg-sky-400 active:scale-95" aria-label="Volver arriba" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">↑</button>
 
