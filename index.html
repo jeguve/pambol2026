@@ -44,6 +44,7 @@
         let unsubscribeLive = null;
         let dashboardVisible = false;
         let currentNickname = '';
+        let resultadosEnVivoActuales = {};
         let ultimoEmailRevisado = '';
         let emailRegistradoDetectado = false;
 
@@ -447,6 +448,7 @@
                     });
                 }
 
+                resultadosEnVivoActuales = resultadosOficiales;
                 renderMatches();
                 loadUserPredictions();
                 renderLiveSection(resultadosOficiales);
@@ -585,7 +587,13 @@
                 'final': 'Finales'
             };
 
-            container.innerHTML = filtrados.map(m => {
+            const esResultadoFinalizado = (partido) => {
+                const resultado = resultadosEnVivoActuales?.[partido.id] || {};
+                const status = String(resultado.status || resultado.estado || resultado.shortStatus || '').trim().toUpperCase();
+                return ['FT', 'FINALIZADO', 'AET', 'PEN'].includes(status);
+            };
+
+            const renderMatchCard = (m) => {
                 const isBlocked = partidoEstaBloqueado(m, now); 
                 const localFinal = m.localCalculado || m.local;
                 const flagLocalFinal = m.localFlagCalculado || m.localFlag;
@@ -630,7 +638,25 @@
                         </button>
                     </div>
                 </div>`;
-            }).join('');
+            };
+
+            const partidosFinalizados = filtrados.filter(esResultadoFinalizado);
+            const partidosVisibles = filtrados.filter(m => !esResultadoFinalizado(m));
+
+            const htmlVisibles = partidosVisibles.map(renderMatchCard).join('');
+            const htmlFinalizados = partidosFinalizados.length ? `
+                <details class="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <summary class="cursor-pointer select-none px-4 py-3 bg-slate-50/90 hover:bg-sky-50/90 transition flex items-center justify-between gap-3 text-slate-600">
+                        <span class="text-xs font-black uppercase tracking-widest"><i class="fas fa-box-archive mr-2 text-sky-500"></i>Partidos finalizados</span>
+                        <span class="text-[10px] font-black bg-white border border-slate-200 rounded-full px-2.5 py-1">${partidosFinalizados.length}</span>
+                    </summary>
+                    <div class="p-3 space-y-3">
+                        ${partidosFinalizados.map(renderMatchCard).join('')}
+                    </div>
+                </details>
+            ` : '';
+
+            container.innerHTML = `${htmlVisibles}${htmlFinalizados}`;
             programarBloqueoPartidos(filtrados);
         };
 
@@ -666,6 +692,19 @@
             document.body.classList.remove('overflow-hidden');
         }
         window.closePredictionsModal = closePredictionsModal;
+
+        function marcadorResultadoModal(resultado) {
+            if (!resultado || !resultadoTieneMarcadorValido(resultado)) {
+                return `<span class="inline-flex items-center mt-1 px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-500 font-black uppercase tracking-wider">Marcador final: pendiente</span>`;
+            }
+
+            const status = String(resultado.status || resultado.estado || resultado.shortStatus || '').trim().toUpperCase();
+            const esFinal = ['FT', 'FINALIZADO', 'AET', 'PEN'].includes(status);
+            const etiqueta = esFinal ? 'Marcador final' : 'Marcador actual';
+            const clase = esFinal ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-sky-200 bg-sky-50 text-sky-700';
+
+            return `<span class="inline-flex items-center mt-1 px-2.5 py-1 rounded-full border ${clase} font-black uppercase tracking-wider">${etiqueta}: ${resultado.golesL} - ${resultado.golesV}</span>`;
+        }
 
         async function openPredictionsModal(matchId) {
             const partido = calendarioPartidos.find(m => m.id === matchId);
@@ -709,6 +748,7 @@
                 ]);
 
                 const resultado = resultadoSnap.exists() ? resultadoSnap.data() : null;
+                subtitle.innerHTML = `${formatearFechaMX(partido.hora)} · ${partido.sede || 'Sede por confirmar'}<br>${marcadorResultadoModal(resultado)}`;
 
                 const usuarios = new Map();
                 usersSnap.forEach(userDoc => {
@@ -1606,7 +1646,7 @@ let rankingFaseActiva = 'general';
                 <div class="min-w-0">
                     <p class="text-[10px] font-black uppercase tracking-[0.22em] text-sky-600 mb-1">Pronósticos del partido</p>
                     <h2 id="predictions-modal-title" class="text-base sm:text-lg font-black text-slate-800 leading-tight"></h2>
-                    <p id="predictions-modal-subtitle" class="text-[11px] text-slate-500 font-bold mt-1 truncate"></p>
+                    <p id="predictions-modal-subtitle" class="text-[11px] text-slate-500 font-bold mt-1 leading-relaxed"></p>
                 </div>
                 <button onclick="closePredictionsModal()" class="flex-none w-9 h-9 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-black hover:bg-rose-50 hover:text-rose-500 active:scale-95 transition" aria-label="Cerrar pronósticos">×</button>
             </div>
