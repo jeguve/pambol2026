@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <!-- CARGA DEL CALENDARIO DEL TORNEO -->
-    <script src="partidos.js"></script>
+    <script src="partidos.js"></script>a
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -438,15 +438,13 @@
 
                 calendarioPartidos.forEach(m => {
                     if (m.fase !== 'grupos') {
-                        m.localCalculado = null; m.visitCalculado = null;
+                        const avance = resultadosOficiales[m.id] || {};
+                        m.localCalculado = avance.localCalculado || null;
+                        m.localFlagCalculado = avance.localFlagCalculado || null;
+                        m.visitCalculado = avance.visitCalculado || null;
+                        m.visitFlagCalculado = avance.visitFlagCalculado || null;
                     }
                 });
-
-                if (partidosDeGruposJugados >= MIN_PARTIDOS_GRUPOS) {
-                    calendarioPartidos.forEach(m => {
-                        if(m.id === '32_1') { m.localCalculado = "México"; m.localFlagCalculado = "MX"; m.visitCalculado = "Suiza"; m.visitFlagCalculado = "CH"; }
-                    });
-                }
 
                 resultadosEnVivoActuales = resultadosOficiales;
                 renderMatches();
