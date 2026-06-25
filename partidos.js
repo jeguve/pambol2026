@@ -106,46 +106,47 @@ const partidosMundial = [
     // ==========================================
     
     // --- 32AVOS DE FINAL (16 Partidos Completos) ---
-    { id: '32_1', local: '2A', localFlag: '🏳️', visit: '2B', visitFlag: '🏳️', sede: 'Los Angeles', hora: '2026-06-29T15:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '32avos', apiFixtureId: 53452545 },
-    { id: '32_2', local: '1F', localFlag: '🏳️', visit: '2C', visitFlag: '🏳️', sede: 'Dallas', hora: '2026-06-29T19:00-05:00', sedeTimezone: 'America/Chicago', fase: '32avos', apiFixtureId: 53452547 },
-    { id: '32_3', local: '1C', localFlag: '🏳️', visit: '2F', visitFlag: '🏳️', sede: 'Miami', hora: '2026-06-30T16:00-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452557 },
-    { id: '32_4', local: '2E', localFlag: '🏳️', visit: '2I', visitFlag: '🏳️', sede: 'New York', hora: '2026-06-30T20:00-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452561 },
-    { id: '32_5', local: '1E', localFlag: '🏳️', visit: '3A/B/C/D/F', visitFlag: '🏳️', sede: 'Boston', hora: '2026-07-01T14:00-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452541 },
-    { id: '32_6', local: '1I', localFlag: '🏳️', visit: '3C/D/F/G/H', visitFlag: '🏳️', sede: 'CDMX', hora: '2026-07-01T18:00-06:00', sedeTimezone: 'America/Mexico_City', fase: '32avos', apiFixtureId: 53452543 },
-    { id: '32_7', local: '1A', localFlag: '🏳️', visit: '3C/E/F/H/I', visitFlag: '🏳️', sede: 'Atlanta', hora: '2026-07-02T15:00-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452563 },
-    { id: '32_8', local: '1L', localFlag: '🏳️', visit: '3E/H/I/J/K', visitFlag: '🏳️', sede: 'Houston', hora: '2026-07-02T19:00-05:00', sedeTimezone: 'America/Chicago', fase: '32avos', apiFixtureId: 53452565 },
-    { id: '32_9', local: '1G', localFlag: '🏳️', visit: '3A/E/H/I/J', visitFlag: '🏳️', sede: 'San Francisco', hora: '2026-07-03T14:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '32avos', apiFixtureId: 53452555 },
-    { id: '32_10', local: '1D', localFlag: '🏳️', visit: '3B/E/F/I/J', visitFlag: '🏳️', sede: 'Seattle', hora: '2026-07-03T18:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '32avos', apiFixtureId: 53452553 },
-    { id: '32_11', local: '1H', localFlag: '🏳️', visit: '2J', visitFlag: '🏳️', sede: 'Kansas City', hora: '2026-07-04T13:00-05:00', sedeTimezone: 'America/Chicago', fase: '32avos', apiFixtureId: 53452551 },
-    { id: '32_12', local: '2K', localFlag: '🏳️', visit: '2L', visitFlag: '🏳️', sede: 'Philadelphia', hora: '2026-07-04T17:00-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452549 },
-    { id: '32_13', local: '1B', localFlag: '🏳️', visit: '3E/F/G/I/J', visitFlag: '🏳️', sede: 'Toronto', hora: '2026-07-05T14:00-04:00', sedeTimezone: 'America/Toronto', fase: '32avos', apiFixtureId: 53452505 },
-    { id: '32_14', local: '1K', localFlag: '🏳️', visit: '3D/E/I/J/L', visitFlag: '🏳️', sede: 'Boston', hora: '2026-07-05T18:00-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452507 },
-    { id: '32_15', local: '2D', localFlag: '🏳️', visit: '2G', visitFlag: '🏳️', sede: 'Monterrey', hora: '2026-07-06T15:00-06:00', sedeTimezone: 'America/Monterrey', fase: '32avos', apiFixtureId: 53452503 },
-    { id: '32_16', local: '1J', localFlag: '🏳️', visit: '2H', visitFlag: '🏳️', sede: 'Vancouver', hora: '2026-07-06T19:00-07:00', sedeTimezone: 'America/Vancouver', fase: '32avos', apiFixtureId: 53452569 },
+    // ==========================================
+    // RONDA DE 32 (M73-M88) - Plantilla oficial FIFA
+    // ==========================================
+    { id: '32_1', matchCode: 'M73', local: '2A', localFlag: '🏳️', visit: '2B', visitFlag: '🏳️', sede: 'Los Angeles Stadium', hora: '2026-06-28T12:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '32avos', apiFixtureId: 53452545 },
+    { id: '32_2', matchCode: 'M74', local: '1E', localFlag: '🏳️', visit: '3A/B/C/D/F', visitFlag: '🏳️', sede: 'Boston Stadium', hora: '2026-06-29T16:30-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452541 },
+    { id: '32_3', matchCode: 'M75', local: '1F', localFlag: '🏳️', visit: '2C', visitFlag: '🏳️', sede: 'Monterrey Stadium', hora: '2026-06-29T19:00-06:00', sedeTimezone: 'America/Monterrey', fase: '32avos', apiFixtureId: 53452547 },
+    { id: '32_4', matchCode: 'M76', local: '1C', localFlag: '🏳️', visit: '2F', visitFlag: '🏳️', sede: 'Houston Stadium', hora: '2026-06-29T12:00-05:00', sedeTimezone: 'America/Chicago', fase: '32avos', apiFixtureId: 53452557 },
+    { id: '32_5', matchCode: 'M77', local: '1I', localFlag: '🏳️', visit: '3C/D/F/G/H', visitFlag: '🏳️', sede: 'New York New Jersey Stadium', hora: '2026-06-30T17:00-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452543 },
+    { id: '32_6', matchCode: 'M78', local: '2E', localFlag: '🏳️', visit: '2I', visitFlag: '🏳️', sede: 'Dallas Stadium', hora: '2026-06-30T12:00-05:00', sedeTimezone: 'America/Chicago', fase: '32avos', apiFixtureId: 53452561 },
+    { id: '32_7', matchCode: 'M79', local: '1A', localFlag: '🏳️', visit: '3C/E/F/H/I', visitFlag: '🏳️', sede: 'Estadio Azteca / Mexico City Stadium', hora: '2026-06-30T19:00-06:00', sedeTimezone: 'America/Mexico_City', fase: '32avos', apiFixtureId: 53452563 },
+    { id: '32_8', matchCode: 'M80', local: '1L', localFlag: '🏳️', visit: '3E/H/I/J/K', visitFlag: '🏳️', sede: 'Atlanta Stadium', hora: '2026-07-01T12:00-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452565 },
+    { id: '32_9', matchCode: 'M81', local: '1D', localFlag: '🏳️', visit: '3B/E/F/I/J', visitFlag: '🏳️', sede: 'San Francisco Bay Area Stadium', hora: '2026-07-01T17:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '32avos', apiFixtureId: 53452553 },
+    { id: '32_10', matchCode: 'M82', local: '1G', localFlag: '🏳️', visit: '3A/E/H/I/J', visitFlag: '🏳️', sede: 'Seattle Stadium', hora: '2026-07-01T13:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '32avos', apiFixtureId: 53452555 },
+    { id: '32_11', matchCode: 'M83', local: '2K', localFlag: '🏳️', visit: '2L', visitFlag: '🏳️', sede: 'Toronto Stadium', hora: '2026-07-02T19:00-04:00', sedeTimezone: 'America/Toronto', fase: '32avos', apiFixtureId: 53452549 },
+    { id: '32_12', matchCode: 'M84', local: '1H', localFlag: '🏳️', visit: '2J', visitFlag: '🏳️', sede: 'Los Angeles Stadium', hora: '2026-07-02T12:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '32avos', apiFixtureId: 53452551 },
+    { id: '32_13', matchCode: 'M85', local: '1B', localFlag: '🏳️', visit: '3E/F/G/I/J', visitFlag: '🏳️', sede: 'BC Place Vancouver', hora: '2026-07-02T20:00-07:00', sedeTimezone: 'America/Vancouver', fase: '32avos', apiFixtureId: 53452505 },
+    { id: '32_14', matchCode: 'M86', local: '1J', localFlag: '🏳️', visit: '2H', visitFlag: '🏳️', sede: 'Miami Stadium', hora: '2026-07-03T18:00-04:00', sedeTimezone: 'America/New_York', fase: '32avos', apiFixtureId: 53452569 },
+    { id: '32_15', matchCode: 'M87', local: '1K', localFlag: '🏳️', visit: '3D/E/I/J/L', visitFlag: '🏳️', sede: 'Kansas City Stadium', hora: '2026-07-03T20:30-05:00', sedeTimezone: 'America/Chicago', fase: '32avos', apiFixtureId: 53452507 },
+    { id: '32_16', matchCode: 'M88', local: '2D', localFlag: '🏳️', visit: '2G', visitFlag: '🏳️', sede: 'Dallas Stadium', hora: '2026-07-03T13:00-05:00', sedeTimezone: 'America/Chicago', fase: '32avos', apiFixtureId: 53452503 },
 
-    // --- 16AVOS DE FINAL (8 Partidos Completos) ---
-    { id: '16_1', local: 'Ganador 32_1', localFlag: '🏳️', visit: 'Ganador 32_2', visitFlag: '🏳️', sede: 'New York', hora: '2026-07-09T16:00-04:00', sedeTimezone: 'America/New_York', fase: '16avos' },
-    { id: '16_2', local: 'Ganador 32_3', localFlag: '🏳️', visit: 'Ganador 32_4', visitFlag: '🏳️', sede: 'Philadelphia', hora: '2026-07-09T20:00-04:00', sedeTimezone: 'America/New_York', fase: '16avos' },
-    { id: '16_3', local: 'Ganador 32_5', localFlag: '🏳️', visit: 'Ganador 32_6', visitFlag: '🏳️', sede: 'Houston', hora: '2026-07-10T15:00-05:00', sedeTimezone: 'America/Chicago', fase: '16avos' },
-    { id: '16_4', local: 'Ganador 32_7', localFlag: '🏳️', visit: 'Ganador 32_8', visitFlag: '🏳️', sede: 'Guadalajara', hora: '2026-07-10T19:00-06:00', sedeTimezone: 'America/Mexico_City', fase: '16avos' },
-    { id: '16_5', local: 'Ganador 32_9', localFlag: '🏳️', visit: 'Ganador 32_10', visitFlag: '🏳️', sede: 'Los Angeles', hora: '2026-07-11T14:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '16avos' },
-    { id: '16_6', local: 'Ganador 32_11', localFlag: '🏳️', visit: 'Ganador 32_12', visitFlag: '🏳️', sede: 'Miami', hora: '2026-07-11T18:00-04:00', sedeTimezone: 'America/New_York', fase: '16avos' },
-    { id: '16_7', local: 'Ganador 32_13', localFlag: '🏳️', visit: 'Ganador 32_14', visitFlag: '🏳️', sede: 'Seattle', hora: '2026-07-12T15:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '16avos' },
-    { id: '16_8', local: 'Ganador 32_15', localFlag: '🏳️', visit: 'Ganador 32_16', visitFlag: '🏳️', sede: 'CDMX', hora: '2026-07-12T19:00-06:00', sedeTimezone: 'America/Mexico_City', fase: '16avos' },
+    // --- OCTAVOS DE FINAL / ROUND OF 16 (M89-M96) ---
+    { id: '16_1', matchCode: 'M89', local: 'Ganador 32_2', localFlag: '🏳️', visit: 'Ganador 32_5', visitFlag: '🏳️', sede: 'Philadelphia Stadium', hora: '2026-07-04T17:00-04:00', sedeTimezone: 'America/New_York', fase: '16avos' },
+    { id: '16_2', matchCode: 'M90', local: 'Ganador 32_1', localFlag: '🏳️', visit: 'Ganador 32_3', visitFlag: '🏳️', sede: 'Houston Stadium', hora: '2026-07-04T12:00-05:00', sedeTimezone: 'America/Chicago', fase: '16avos' },
+    { id: '16_3', matchCode: 'M91', local: 'Ganador 32_4', localFlag: '🏳️', visit: 'Ganador 32_6', visitFlag: '🏳️', sede: 'New York New Jersey Stadium', hora: '2026-07-05T16:00-04:00', sedeTimezone: 'America/New_York', fase: '16avos' },
+    { id: '16_4', matchCode: 'M92', local: 'Ganador 32_7', localFlag: '🏳️', visit: 'Ganador 32_8', visitFlag: '🏳️', sede: 'Estadio Azteca / Mexico City Stadium', hora: '2026-07-05T18:00-06:00', sedeTimezone: 'America/Mexico_City', fase: '16avos' },
+    { id: '16_5', matchCode: 'M93', local: 'Ganador 32_11', localFlag: '🏳️', visit: 'Ganador 32_12', visitFlag: '🏳️', sede: 'Dallas Stadium', hora: '2026-07-06T14:00-05:00', sedeTimezone: 'America/Chicago', fase: '16avos' },
+    { id: '16_6', matchCode: 'M94', local: 'Ganador 32_9', localFlag: '🏳️', visit: 'Ganador 32_10', visitFlag: '🏳️', sede: 'Seattle Stadium', hora: '2026-07-06T17:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: '16avos' },
+    { id: '16_7', matchCode: 'M95', local: 'Ganador 32_14', localFlag: '🏳️', visit: 'Ganador 32_16', visitFlag: '🏳️', sede: 'Atlanta Stadium', hora: '2026-07-07T12:00-04:00', sedeTimezone: 'America/New_York', fase: '16avos' },
+    { id: '16_8', matchCode: 'M96', local: 'Ganador 32_13', localFlag: '🏳️', visit: 'Ganador 32_15', visitFlag: '🏳️', sede: 'BC Place Vancouver', hora: '2026-07-07T13:00-07:00', sedeTimezone: 'America/Vancouver', fase: '16avos' },
 
-    // --- CUARTOS DE FINAL (4 Partidos Completos) ---
-    { id: '4_1', local: 'Ganador 16_1', localFlag: '🏳️', visit: 'Ganador 16_2', visitFlag: '🏳️', sede: 'Boston', hora: '2026-07-15T16:00-04:00', sedeTimezone: 'America/New_York', fase: 'cuartos' },
-    { id: '4_2', local: 'Ganador 16_3', localFlag: '🏳️', visit: 'Ganador 16_4', visitFlag: '🏳️', sede: 'Los Angeles', hora: '2026-07-15T20:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: 'cuartos' },
-    { id: '4_3', local: 'Ganador 16_5', localFlag: '🏳️', visit: 'Ganador 16_6', visitFlag: '🏳️', sede: 'Kansas City', hora: '2026-07-16T17:00-05:00', sedeTimezone: 'America/Chicago', fase: 'cuartos' },
-    { id: '4_4', local: 'Ganador 16_7', localFlag: '🏳️', visit: 'Ganador 16_8', visitFlag: '🏳️', sede: 'Miami', hora: '2026-07-16T21:00-04:00', sedeTimezone: 'America/New_York', fase: 'cuartos' },
+    // --- CUARTOS DE FINAL (M97-M100) ---
+    { id: '4_1', matchCode: 'M97', local: 'Ganador 16_1', localFlag: '🏳️', visit: 'Ganador 16_2', visitFlag: '🏳️', sede: 'Boston Stadium', hora: '2026-07-09T16:00-04:00', sedeTimezone: 'America/New_York', fase: 'cuartos' },
+    { id: '4_2', matchCode: 'M98', local: 'Ganador 16_5', localFlag: '🏳️', visit: 'Ganador 16_6', visitFlag: '🏳️', sede: 'Los Angeles Stadium', hora: '2026-07-10T12:00-07:00', sedeTimezone: 'America/Los_Angeles', fase: 'cuartos' },
+    { id: '4_3', matchCode: 'M99', local: 'Ganador 16_3', localFlag: '🏳️', visit: 'Ganador 16_4', visitFlag: '🏳️', sede: 'Miami Stadium', hora: '2026-07-11T17:00-04:00', sedeTimezone: 'America/New_York', fase: 'cuartos' },
+    { id: '4_4', matchCode: 'M100', local: 'Ganador 16_7', localFlag: '🏳️', visit: 'Ganador 16_8', visitFlag: '🏳️', sede: 'Kansas City Stadium', hora: '2026-07-11T20:00-05:00', sedeTimezone: 'America/Chicago', fase: 'cuartos' },
 
-    // --- SEMIFINALES (2 Partidos completos) ---
-    { id: 'semi_1', local: 'Ganador 4_1', localFlag: '🏳️', visit: 'Ganador 4_2', visitFlag: '🏳️', sede: 'Dallas', hora: '2026-07-18T19:00-05:00', sedeTimezone: 'America/Chicago', fase: 'semis' },
-    { id: 'semi_2', local: 'Ganador 4_3', localFlag: '🏳️', visit: 'Ganador 4_4', visitFlag: '🏳️', sede: 'Atlanta', hora: '2026-07-19T19:00-04:00', sedeTimezone: 'America/New_York', fase: 'semis' },
-
-    // --- FINAL ---
-    { id: 'tercer_lugar', local: 'Perdedor S1', localFlag: '🏳️', visit: 'Perdedor S2', visitFlag: '🏳️', sede: 'Miami', hora: '2026-07-25T16:00-04:00', sedeTimezone: 'America/New_York', fase: 'final' },
-    { id: 'gran_final', local: 'Ganador S1', localFlag: '🏳️', visit: 'Ganador S2', visitFlag: '🏳️', sede: 'New York', hora: '2026-07-26T15:00-04:00', sedeTimezone: 'America/New_York', fase: 'final' }
+    // --- SEMIFINALES Y FINALES (M101-M104) ---
+    { id: 'semi_1', matchCode: 'M101', local: 'Ganador 4_1', localFlag: '🏳️', visit: 'Ganador 4_2', visitFlag: '🏳️', sede: 'Dallas Stadium', hora: '2026-07-14T14:00-05:00', sedeTimezone: 'America/Chicago', fase: 'semis' },
+    { id: 'semi_2', matchCode: 'M102', local: 'Ganador 4_3', localFlag: '🏳️', visit: 'Ganador 4_4', visitFlag: '🏳️', sede: 'Atlanta Stadium', hora: '2026-07-15T15:00-04:00', sedeTimezone: 'America/New_York', fase: 'semis' },
+    { id: 'tercer_lugar', matchCode: 'M103', local: 'Perdedor S1', localFlag: '🏳️', visit: 'Perdedor S2', visitFlag: '🏳️', sede: 'Miami Stadium', hora: '2026-07-18T17:00-04:00', sedeTimezone: 'America/New_York', fase: 'final' },
+    { id: 'gran_final', matchCode: 'M104', local: 'Ganador S1', localFlag: '🏳️', visit: 'Ganador S2', visitFlag: '🏳️', sede: 'New York New Jersey Stadium', hora: '2026-07-19T15:00-04:00', sedeTimezone: 'America/New_York', fase: 'final' }
 ];
 
 window.partidosMundial = partidosMundial;
