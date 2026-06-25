@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <!-- CARGA DEL CALENDARIO DEL TORNEO -->
-    <script src="partidos.js"></script>a
+    <script src="partidos.js"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -875,16 +875,42 @@
             const estadoPartido = (d) => {
                 const raw = String(d.status || d.estado || d.shortStatus || '').toUpperCase();
                 const minuto = d.minuto || d.elapsed || d.minute || '';
-                if (['FT', 'AET', 'PEN'].includes(raw)) return 'Finalizado';
+                if (['FT', 'AET', 'PEN', 'FINALIZADO'].includes(raw)) return 'Finalizado';
                 if (raw === 'HT') return 'Medio tiempo';
-                if (['1H', '2H', 'ET', 'BT', 'P', 'LIVE', 'IN_PLAY'].includes(raw)) return 'EN VIVO';
-                if (raw === 'NS') return 'Por iniciar';
+                if (['1H', '2H', 'ET', 'BT', 'P', 'LIVE', 'IN_PLAY', 'INICIADO', 'MANUAL'].includes(raw)) return 'EN VIVO';
+                if (['NS', 'TBD', 'SCHEDULED', 'PROGRAMADO', 'POR INICIAR'].includes(raw)) return 'Por iniciar';
                 return 'EN VIVO';
+            };
+
+            const debeMostrarseEnVivo = ({ data, match }) => {
+                const raw = String(data.status || data.estado || data.shortStatus || '').trim().toUpperCase();
+                const finales = new Set(['FT', 'AET', 'PEN', 'FINALIZADO']);
+                const activos = new Set(['LIVE', 'INICIADO', 'MANUAL', '1H', '2H', 'HT', 'ET', 'BT', 'P', 'IN_PLAY']);
+                const porIniciar = new Set(['', 'NS', 'TBD', 'SCHEDULED', 'PROGRAMADO', 'POR INICIAR']);
+
+                if (finales.has(raw)) return false;
+                if (activos.has(raw)) return true;
+                if (!match || !match.hora) return false;
+
+                const inicio = new Date(match.hora).getTime();
+                if (!Number.isFinite(inicio)) return false;
+
+                const ahora = Date.now();
+                const minutosAntes = 15 * 60 * 1000;
+                const minutosDespues = 4 * 60 * 60 * 1000;
+
+                // Evita que la pestaña En Vivo muestre partidos futuros de 32avos u otras fases.
+                // Solo permite partidos por iniciar cuando están muy cerca de empezar.
+                if (porIniciar.has(raw)) {
+                    return ahora >= inicio - minutosAntes && ahora <= inicio + minutosDespues;
+                }
+
+                return ahora <= inicio + minutosDespues;
             };
 
             const items = Object.keys(resultados)
                 .map(id => ({ id, data: resultados[id], match: calendarioPartidos.find(m => m.id === id) }))
-                .filter(({ data }) => String(data.status || data.estado || data.shortStatus || '').trim().toUpperCase() !== 'FT')
+                .filter(debeMostrarseEnVivo)
                 .sort((a, b) => {
                     const fa = a.match ? new Date(a.match.hora).getTime() : 0;
                     const fb = b.match ? new Date(b.match.hora).getTime() : 0;
